@@ -1,3 +1,76 @@
+import numpy as np
+
+def find_index_in_list(a, subset):
+    """
+    Parameters
+    --------
+    a : list
+        list of values
+    subset : list
+        list of values shorter than a, which may exist in a
+    
+    Returns
+    --------
+    (idx, )
+    """
+    if not subset:
+        return
+    subset_len = len(subset)
+    first_val = subset[0]
+    for idx, item in enumerate(a):
+        if item == first_val:
+            if a[idx:idx+subset_len] == subset:
+                yield tuple(range(idx, idx+subset_len))
+
+def stderr(a):
+    return np.std(a) / np.sqrt(np.size(a))
+
+def z_score(A):
+    return (np.max(np.abs(A))-np.mean(A)) / np.std(A)
+
+def modind(a, b):
+    """
+    a should be pref, b should be the nonpref
+    """
+
+    modind_val = (a - b) / (a + b)
+    return modind_val
+
+def nearest_ind(val, a):
+    """
+    val is a single value, float or something
+
+    a is an array of values
+    """
+    ind = np.argmin(np.abs(a - val))
+    return ind
+
+def str_to_bool(value):
+    """ Parse strings to read argparse flag entries in as bool.
+    
+    Parameters
+    --------
+    value : str
+        Input value.
+
+    Returns
+    --------
+    bool
+    """
+    if isinstance(value, bool):
+        return value
+    if value.lower() in {'False', 'false', 'f', '0', 'no', 'n'}:
+        return False
+    elif value.lower() in {'True', 'true', 't', '1', 'yes', 'y'}:
+        return True
+    raise ValueError(f'{value} is not a valid boolean value')
+
+
+
+
+
+
+
 """
 FreelyMovingEphys/src/base.py
 """
