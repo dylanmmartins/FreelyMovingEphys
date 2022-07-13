@@ -1,412 +1,172 @@
-"""
-FreelyMovingEphys/src/prelim.py
-"""
-import os
+import argparse, os
+import PySimpleGUI as sg
 import numpy as np
-from glob import glob
-from tqdm import tqdm
-import pandas as pd
-import matplotlib.pyplot as plt
-from scipy.io import loadmat
-from matplotlib.backends.backend_pdf import PdfPages
+import scipy.interpolate
 
-from src.base import BaseInput
-from src.worldcam import Worldcam
-from src.ephys import Ephys
-from src.utils.path import find, auto_recording_name
+import src.utils as utils
 
-class PrelimRF(Ephys):
-    def __init__(self, binary_path, probe):
-        head, _ = os.path.split(binary_path)
-        self.recording_path = head
-        self.recording_name = auto_recording_name(head)
-        self.probe = probe
-        self.num_channels = next(int(num) for num in ['128','64','16'] if num in self.probe)
-        self.n_cells = self.num_channels
-        self.generic_config = {
-            'animal_directory': self.recording_path
-        }
-        self.ephys_samprate = 30000
-        self.ephys_offset = 0.1
-        self.ephys_drift_rate = -0.1/1000
-        self.model_dt = 0.025
-        self.spike_thresh = -350
-        # this will be applied to the worldcam twice
-        # once when avi is packed into a np array, and again when it is put into new bins for spike times
-        self.vid_dwnsmpl = 0.25
+def prelimRF_raw(wn_dir, probe):
 
-    def prelim_video_setup(self):
-        cam_gamma = 2
-        world_norm = (self.world_vid / 255) ** cam_gamma
-        std_im = np.std(world_norm, 0)
-        std_im[std_im<10/255] = 10 / 255
-        self.img_norm = (world_norm - np.mean(world_norm, axis=0)) / std_im
-        self.img_norm = self.img_norm * (std_im > 20 / 255)
-        self.small_world_vid[self.img_norm < -2] = -2
+    # Get files
+    world_avi = utils.path.find('*WORLD.avi', wn_dir)
+    world_csv = utils.path.find('*WORLD_BonsaiTS.csv', wn_dir)
+    ephys_bin = utils.path.find('*Ephys.bin', wn_dir)
+    ephys_csv = utils.path.find('*Ephys_BonsaiBoardTS.csv', wn_dir)
 
-    def minimal_process(self):
-        self.detail_pdf = PdfPages(os.path.join(self.recording_name, 'prelim_raw_whitenoise.pdf'))
+    # Worldcam setup
+    worldT = utils.time.read_time(world_csv)
+    worldT = worldT - ephysT0
 
-        wc = Worldcam(self.generic_config, self.recording_name, self.recording_path, 'WORLD')
-        self.worldT = wc.read_timestamp_file()
-        self.world_vid = wc.pack_video_frames(usexr=False, dwsmpl=0.25)
+    stim_arr = utils.video.avi_to_arr(world_avi, ds=0.25)
+
+    # Ephys setup
+    ephysT = utils.time.read_time(ephys_csv)
+    ephysT0 = ephysT[0]
+
+    n_ch, _ = utils.base.probe_to_nCh(probe)
+    ephys = utils.ephys.read_ephysbin(ephys_bin, n_ch=n_ch)
+    spikeT = utils.ephys.volt_to_spikes(ephys, ephysT0, fixT=True) # values are corrected for drift/offset, too
+
+    # get stimulus
+    cam_gamma = 2
+    norm_stim = (stim_arr / 255)**cam_gamma
+
+    std_im = np.std(norm_stim, axis=0)
+    std_im[std_im < 10/255] = 10/255
+
+    img_norm = (norm_stim - np.mean(norm_stim, axis=0)) / std_im
+    img_norm = img_norm * (std_im > 20/255)
+    img_norm[img_norm < -2] = -2
+
+    movInterp = scipy.interpolate.interp1d(worldT, img_norm, axis=0, bounds_error=False)
+
+    # calculate STAs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def prelimRF_sorted():
+
+def window(probe_opts):
+    sg.theme('Default1')
+    opt_layout =  [[sg.Text('Probe layout')],
+                   [sg.Combo(values=(probe_opts), default_value=probe_opts[0],
+                      readonly=True, k='k_probe', enable_events=True)],
+
+                   [sg.Text('White noise directory')],
+                   [sg.Button('Open directory', k='k_dir')],
+
+                   [sg.Radio('Raw', group_id='code_type', k='k_raw', default=True)],
+                   [sg.Radio('Spike-sorted', group_id='code_type', k='k_sorted')],
+                
+                   [sg.Button('Start', k='k_start')]]
+
+    return sg.Window('FreelyMovingEphys: Preliminary Modules', opt_layout)
+
+
+def make_window(chmaps_path):
+
+    with open(chmaps_path, 'r') as fp:
+            mappings = json.load(fp)
+    probe_opts = mappings.keys()
+
+    sg.theme('Default1')
+    ready = False
+    w = window(probe_opts)
+    while True:
+        event, values = w.read(timeout=100)
+
+        if event == 'k_dir':
+            wn_dir = sg.popup_get_folder('Open directory')
+            print('Set {} as white noise directory'.format(wn_dir))
+
+        elif event in (None, 'Exit'):
+            break
+
+        elif event == 'k_start':
+            use_probe = values['k_probe']
+
+            if values['k_raw'] is True:
+                spike_sorted = False
+            elif values['k_sorted'] is True:
+                spike_sorted = True
+
+            ready = True
+            break
+
+    w.close()
+    if ready:
+        return wn_dir, use_probe, spike_sorted
+    else:
+        return None, None, None
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--dir', type=str, default=None)
+    parser.add_argument('-p', '--probe', type=str, default=None)
+    parser.add_argument('-s', '--sorted', type=utils.base.str_to_bool, nargs='?', const=True, default=False)
+    args = parser.parse_args()
+
+    if args.dir is None or args.probe is None:
+        src_dir, _ = os.path.split(__file__)
+        repo_dir, _ = os.path.splie(src_dir)
+        chmaps_path = os.path.join(repo_dir, 'config/channel_maps.json')
         
-        self.ephys_bin_path = glob(os.path.join(self.recording_path, '*Ephys.bin'))[0]
-        ephys_time_file = glob(os.path.join(self.recording_path, '*Ephys_BonsaiBoardTS.csv'))[0]
+        wn_dir, probe, ssorted = make_window(chmaps_path)
+    else:
+        wn_dir = args.dir; probe = args.probe; ssorted = args.sorted
 
-        lfp_ephys = self.read_binary_file(do_remap=True)
-        ephys_center_sub = lfp_ephys - np.mean(lfp_ephys, 0)
-        filt_ephys = self.butter_bandpass(ephys_center_sub, lowcut=800, highcut=8000, fs=30000, order=6)
+    if all(x is not None for x in [wn_dir, probe, ssorted]):
+        print('White noise path: {}\n Probe map: {}\n Spike sorted: {}'.format(
+            wn_dir, probe, ssorted))
 
-        ephysT = self.read_timestamp_file()
-        t0 = ephysT[0]
+        if ssorted is False:
+            prelimRF_raw(wn_dir, probe)
 
-        self.worldT = self.worldT - t0
+        elif ssorted is True:
+            prelimRF_sorted(wn_dir, probe)
 
-        num_samp = np.size(filt_ephys, 0)
-        new_ephysT = np.array(t0 + np.linspace(0, num_samp-1, num_samp) / self.ephys_samprate) - t0
-        
-        self.model_t = np.arange(0, np.nanmax(self.worldT), self.model_dt)
 
-        self.prelim_video_setup()
-        self.worldcam_at_new_timebase(dwnsmpl=0.25)
 
-        all_spikeT = []
-        for ch in tqdm(range(np.size(filt_ephys,1))):
-            spike_inds = list(np.where(filt_ephys[:,ch] < self.spike_thresh)[0])
-            spikeT = new_ephysT[spike_inds]
-            all_spikeT.append(spikeT - (self.ephys_offset + spikeT * self.ephys_drift_rate))
 
-        self.model_nsp = np.zeros((self.n_cells, len(self.model_t)))
-        bins = np.append(self.model_t, self.model_t[-1]+self.model_dt)
-        for i in range(self.n_cells):
-            self.model_nsp[i,:], _ = np.histogram(all_spikeT[i], bins)
-
-        self.calc_sta(do_rotation=True, using_spike_sorted=False)
-
-        self.detail_pdf.close()
-
-    # def full_process(self):
-
-# class PrelimDepth(Ephys):
-#     def __init__(self, binary_path, probe):
 
 """
 RAW RFs
 """
-from modules.prelim_raw_rf.prelim_raw_rf import main as prelim_raw_rf
-import PySimpleGUI as sg
-import argparse
 
-def make_window(theme):
-    sg.theme(theme)
-    options_layout =  [[sg.Text('Select the model of ephys probe used.')],
-                       [sg.Combo(values=('default16', 'NN_H16', 'default64', 'NN_H64-LP', 'DB_P64-3', 'DB_P64-8', 'DB_P128-6','DB_128-D'), default_value='default16', readonly=True, k='-COMBO-', enable_events=True)],
-                       [sg.Text('Select the whitenoise recording directory.')],
-                       [sg.Button('Open hf1_wn directory')]]
-    logging_layout = [[sg.Text('Run this module')],
-                      [sg.Button('Run module')]]
-    layout = [[sg.Text('Preliminary whitenoise receptive field mapping', size=(38, 1), justification='center', font=("Times", 16), relief=sg.RELIEF_RIDGE, k='-TEXT HEADING-', enable_events=True)]]
-    layout +=[[sg.TabGroup([[sg.Tab('Options', options_layout),
-               sg.Tab('Run', logging_layout)]], key='-TAB GROUP-')]]
-    return sg.Window('Preliminary whitenoise receptive field mapping', layout)
 
-def main():
-    window = make_window(sg.theme())
-    while True:
-        event, values = window.read(timeout=100)
-        if event == 'Open hf1_wn directory':
-            wn_dir = sg.popup_get_folder('Choose hf1_wn directory')
-            print('Whitenoise directory: ' + str(wn_dir))
-        elif event in (None, 'Exit'):
-            print('Exiting')
-            break
-        elif event == 'Run module':
-            probe = values['-COMBO-']
-            print('Probe: ' + str(probe))
-            prelim_raw_rf(wn_dir, probe)
-    window.close()
-    exit(0)
-
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--wn_dir', type=str, default=None)
-    parser.add_argument('--probe', type=str, default=None)
-    args = parser.parse_args()
-    return args
-
-if __name__ == '__main__':
-    args = get_args()
-    if args.wn_dir is None or args.probe is None:
-        main()
-    else:
-        prelim_raw_rf(args.wn_dir, args.probe)
-
-from glob import glob
-import os, cv2, json
-from multiprocessing import freeze_support
-import matplotlib.pyplot as plt
-import numpy as np
-from tqdm import tqdm
-from datetime import datetime
-import pandas as pd
-import xarray as xr
-from matplotlib.backends.backend_pdf import PdfPages
-from scipy.interpolate import interp1d
-from scipy.signal import butter, sosfiltfilt
-
-def read_ephys_bin(binary_path, probe_name, do_remap=True, mapping_json=None):
-    """
-    read in ephys binary file and apply remapping using the name of the probe,
-    where the binary dimensions and remaping vector are read in from relative
-    path within the FreelyMovingEphys directory (FreelyMovingEphys/matlab/channel_maps.json)
-    INPUTS
-        binary_path: path to binary file
-        probe_name: name of probe, which should be a key in the dict stored in the .json of probe remapping vectors
-        do_remap: bool, whether or not to remap the drive
-        mapping_json: path to a .json in which each key is a probe name and each value is the 1-indexed sequence of channels
-    OUTPUTS
-        ephys: ephys DataFrame
-    """
-    # get channel number
-    if '16' in probe_name:
-        ch_num = 16
-    elif '64' in probe_name:
-        ch_num = 64
-    elif '128' in probe_name:
-        ch_num = 128
-    if mapping_json is not None:
-        # open file of default mappings
-        with open(mapping_json, 'r') as fp:
-            mappings = json.load(fp)
-        # get the mapping for the probe name used in the current recording
-        ch_remap = mappings[probe_name]
-    # set up data types to read binary file into
-    dtypes = np.dtype([("ch"+str(i),np.uint16) for i in range(0,ch_num)])
-    # read in binary file
-    ephys = pd.DataFrame(np.fromfile(binary_path, dtypes, -1, ''))
-    # remap with known order of channels
-    if do_remap is True:
-        ephys = ephys.iloc[:,[i-1 for i in list(ch_remap)]]
-    return ephys
-
-def butter_bandpass(data, lowcut=1, highcut=300, fs=30000, order=5):
-    """
-    apply bandpass filter to ephys lfp applied along axis=0
-    axis=0 should be the time dimension for any data passed in
-    INPUTS
-        data: 2d array of multiple channels of ephys data as a numpy array or pandas dataframe
-        lowcut: low end of cut off for frequency
-        highcut: high end of cut off for frequency
-        fs: sample rate
-        order: order of filter
-    OUTPUTS
-        filtered data in the same type as input data
-    """
-    nyq = 0.5 * fs # Nyquist frequency
-    low = lowcut / nyq # low cutoff
-    high = highcut / nyq # high cutoff
-    sos = butter(order, [low, high], btype='bandpass', output='sos')
-    return sosfiltfilt(sos, data, axis=0)
-
-def open_time(path, dlc_len=None, force_shift=False):
-    """ Read in the timestamps for a camera and adjust to deinterlaced video length if needed
-    Parameters:
-    path (str): path to a timestamp .csv file
-    dlc_len (int): number of frames in the DLC data (used to decide if interpolation is needed, but this can be left as None to ignore)
-    force_shift (bool): whether or not to interpolate timestamps without checking
-    
-    Returns:
-    time_out (np.array): timestamps as numpy
-    """
-    # read in the timestamps if they've come directly from cameras
-    read_time = pd.read_csv(path, encoding='utf-8', engine='c', header=None).squeeze()
-    if read_time[0] == 0: # in case header == 0, which is true of some files, drop that header which will have been read in as the first entry  
-        read_time = read_time[1:]
-    time_in = []
-    fmt = '%H:%M:%S.%f'
-    if read_time.dtype!=np.float64:
-        for current_time in read_time:
-            currentT = str(current_time).strip()
-            try:
-                t = datetime.strptime(currentT,fmt)
-            except ValueError as v:
-                ulr = len(v.args[0].partition('unconverted data remains: ')[2])
-                if ulr:
-                    currentT = currentT[:-ulr]
-            try:
-                time_in.append((datetime.strptime(currentT, '%H:%M:%S.%f') - datetime.strptime('00:00:00.000000', '%H:%M:%S.%f')).total_seconds())
-            except ValueError:
-                time_in.append(np.nan)
-        time_in = np.array(time_in)
-    else:
-        time_in = read_time.values
-
-    # auto check if vids were deinterlaced
-    if dlc_len is not None:
-        # test length of the time just read in as it compares to the length of the data, correct for deinterlacing if needed
-        timestep = np.nanmedian(np.diff(time_in, axis=0))
-        if dlc_len > len(time_in):
-            time_out = np.zeros(np.size(time_in, 0)*2)
-            # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
-            time_out[::2] = time_in - 0.25 * timestep
-            time_out[1::2] = time_in + 0.25 * timestep
-        elif dlc_len == len(time_in):
-            time_out = time_in
-        elif dlc_len < len(time_in):
-            time_out = time_in
-    elif dlc_len is None:
-        time_out = time_in
-
-    # force the times to be shifted if the user is sure it should be done
-    if force_shift is True:
-        # test length of the time just read in as it compares to the length of the data, correct for deinterlacing
-        timestep = np.nanmedian(np.diff(time_in, axis=0))
-        time_out = np.zeros(np.size(time_in, 0)*2)
-        # shift each deinterlaced frame by 0.5 frame period forward/backwards relative to timestamp
-        time_out[::2] = time_in - 0.25 * timestep
-        time_out[1::2] = time_in + 0.25 * timestep
-
-    return time_out
-
-def plot_prelim_STA(spikeT, img_norm, worldT, movInterp, ch_count, lag=2):
-    n_units = len(spikeT)
-    # model setup
-    model_dt = 0.025
-    model_t = np.arange(0, np.nanmax(worldT), model_dt)
-    model_nsp = np.zeros((n_units, len(model_t)))
-    # get binned spike rate
-    bins = np.append(model_t, model_t[-1]+model_dt)
-    for i in range(n_units):
-        model_nsp[i,:], bins = np.histogram(spikeT[i], bins)
-    # settting up video
-    nks = np.shape(img_norm[0,:,:])
-    nk = nks[0]*nks[1]
-    model_vid = np.zeros((len(model_t),nk))
-    for i in range(len(model_t)):
-        model_vid[i,:] = np.reshape(movInterp(model_t[i]+model_dt/2), nk)
-    # spike-triggered average
-    staAll = np.zeros((n_units, np.shape(img_norm)[1], np.shape(img_norm)[2]))
-    model_vid[np.isnan(model_vid)] = 0
-    fig = plt.figure(figsize=(20,np.ceil(n_units/2)))
-    for c in range(n_units):
-        sp = model_nsp[c,:].copy()
-        sp = np.roll(sp, -lag)
-        sta = model_vid.T @ sp
-        sta = np.reshape(sta, nks)
-        nsp = np.sum(sp)
-        plt.subplot(int(np.ceil(n_units/10)),10,c+1)
-        if nsp > 0:
-            sta = sta/nsp
-            # flip matrix so that physical top is at the top (worldcam comes in upsidedown)
-            sta = np.fliplr(np.flipud(sta))
-        else:
-            sta = np.nan
-        if pd.isna(sta) is True:
-            plt.imshow(np.zeros([120,160]))
-        else:
-            starange = np.max(np.abs(sta))*1.1
-            plt.imshow((sta-np.mean(sta)), vmin=-starange, vmax=starange, cmap='jet')
-            staAll[c,:,:] = sta
-    plt.tight_layout()
-    return staAll, fig
-
-def main(whitenoise_directory, probe):
-    print('finding files')
-    world_file = glob(os.path.join(whitenoise_directory, '*WORLD.avi'))[0]
-    world_time_file = glob(os.path.join(whitenoise_directory, '*WORLD_BonsaiTS.csv'))[0]
-    ephys_file = glob(os.path.join(whitenoise_directory, '*Ephys.bin'))[0]
-    ephys_time_file = glob(os.path.join(whitenoise_directory, '*Ephys_BonsaiBoardTS.csv'))[0]
-    print('loading and filtering ephys binary')
-    pdf = PdfPages(os.path.join(whitenoise_directory, 'prelim_raw_whitenoise.pdf'))
-    lfp_ephys = read_ephys_bin(ephys_file, probe, do_remap=False)
-    ephys_center_sub = lfp_ephys - np.mean(lfp_ephys,0)
-    filt_ephys = butter_bandpass(ephys_center_sub, lowcut=800, highcut=8000, fs=30000, order=6)
-    t0 = open_time(ephys_time_file)[0]
-    worldT = open_time(world_time_file)
-    worldT = worldT - t0
-    print('loading worldcam video')
-    vidread = cv2.VideoCapture(world_file)
-    world_vid = np.empty([int(vidread.get(cv2.CAP_PROP_FRAME_COUNT)),
-                        int(vidread.get(cv2.CAP_PROP_FRAME_HEIGHT)*0.25),
-                        int(vidread.get(cv2.CAP_PROP_FRAME_WIDTH)*0.25)], dtype=np.uint8)
-    # iterate through each frame
-    for frame_num in range(0,int(vidread.get(cv2.CAP_PROP_FRAME_COUNT))):
-        # read the frame in and make sure it is read in correctly
-        ret, frame = vidread.read()
-        if not ret:
-            break
-        # convert to grayscale
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        # downsample the frame by an amount specified in the config file
-        sframe = cv2.resize(frame, (0,0), fx=0.25, fy=0.25, interpolation=cv2.INTER_NEAREST)
-        # add the downsampled frame to all_frames as int8
-        world_vid[frame_num,:,:] = sframe.astype(np.int8)
-    print('setting up worldcam and ephys')
-    offset0 = 0.1
-    drift_rate = -0.1/1000
-    num_samp = np.size(filt_ephys,0)
-    samp_freq = 30000
-    ephys_time = np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq) - t0
-    cam_gamma = 2
-    world_norm = (world_vid/255)**cam_gamma
-    std_im = np.std(world_norm,axis=0)
-    std_im[std_im<10/255] = 10/255
-    img_norm = (world_norm-np.mean(world_norm,axis=0))/std_im
-    img_norm = img_norm * (std_im>20/255)
-    img_norm[img_norm<-2] = -2
-    movInterp = interp1d(worldT, img_norm, axis=0, bounds_error=False)
-    plt.subplots(np.size(filt_ephys,1),1,figsize=(5,int(np.ceil(np.size(filt_ephys,1)/2))))
-    print('getting receptive fields and plotting')
-    all_spikeT = []
-    for ch in tqdm(range(np.size(filt_ephys,1))):
-        spike_thresh = -350
-        spike_inds = list(np.where(filt_ephys[:,ch] < spike_thresh)[0])
-        spikeT = ephys_time[spike_inds]
-        all_spikeT.append(spikeT - (offset0 + spikeT * drift_rate))
-    all_STA, fig = plot_prelim_STA(all_spikeT, img_norm, worldT, movInterp, np.size(filt_ephys,1))
-    pdf.savefig(); plt.close()
-    pdf.close()
-    print('done')
 
 """
 Spike sorted prelim RFs
 """
-from modules.prelim_sorted_rf.prelim_sorted_rf import main as prelim_sorted_rf
-import PySimpleGUI as sg
 
-def make_window(theme):
-    sg.theme(theme)
-    options_layout =  [[sg.Text('Select the model of ephys probe used.')],
-                       [sg.Combo(values=('default16', 'NN_H16', 'default64', 'NN_H64-LP', 'DB_P64-3', 'DB_P64-8', 'DB_P128-6', 'DB_P128-D' ), default_value='default16', readonly=True, k='-COMBO-', enable_events=True)],
-                       [sg.Text('Select the whitenoise recording directory.')],
-                       [sg.Button('Open hf1_wn directory')]]
-    logging_layout = [[sg.Text('Run this module')],
-                      [sg.Button('Run module')]]
-    layout = [[sg.Text('Preliminary whitenoise receptive field mapping', size=(38, 1), justification='center', font=("Times", 16), relief=sg.RELIEF_RIDGE, k='-TEXT HEADING-', enable_events=True)]]
-    layout +=[[sg.TabGroup([[sg.Tab('Options', options_layout),
-               sg.Tab('Run', logging_layout)]], key='-TAB GROUP-')]]
-    return sg.Window('Preliminary whitenoise receptive field mapping', layout)
-
-def main():
-    window = make_window(sg.theme())
-    while True:
-        event, values = window.read(timeout=100)
-        if event == 'Open hf1_wn directory':
-            binary_file = sg.popup_get_folder('Choose hf1_wn directory')
-            print('Whitenoise directory: ' + str(binary_file))
-        elif event in (None, 'Exit'):
-            print('Exiting')
-            break
-        elif event == 'Run module':
-            probe = values['-COMBO-']
-            print('Probe: ' + str(probe))
-            prelim_sorted_rf(binary_file, probe)
-    window.close()
-    exit(0)
-
-if __name__ == '__main__':
-    main()
 
 from glob import glob
 import os, cv2, subprocess

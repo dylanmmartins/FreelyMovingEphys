@@ -3,86 +3,66 @@ import pandas as pd
 from sklearn.neighbors import KernelDensity
 from tqdm import tqdm
 
-from src.utils.filter import butter_bandpass
-from src.utils.fileops import read_ephys_binary
-from src.utils.time import read_time_file
+import src.utils as utils
 
-def spikeT_from_LFP(ephys_binary_path, ephysT_path, probe_name, spike_thresh=-350, do_timefix=True):
+def read_ephysbin(path, n_ch, probe_name=None, chmap_path=None):
+    """ Read in ephys binary and remap channels.
+
+    Parameters:
+    if a probe name is given, the binary file will be remapped. otherwise, channels will be kept in the same order
+
+    Returns:
+    ephys (pd.DataFrame): ephys data with shape (time, channel)
+    """
+    # set up data types
+    dtypes = np.dtype([('ch'+str(i),np.uint16) for i in range(0,n_ch)])
+    # read in binary file
+    ephys_arr = pd.DataFrame(np.fromfile(path, dtypes, -1, ''))
+    if probe_name is not None:
+        # open channel map file
+        if chmap_path is None:
+            utils_dir, _ = os.path.split(__file__)
+            src_dir, _ = os.path.split(utils_dir)
+            repo_dir, _ = os.path.splie(src_dir)
+            chmap_path = os.path.join(repo_dir, 'config/channel_maps.json')
+        with open(chmap_path, 'r') as fp:
+            all_maps = json.load(fp)
+        # get channel map for the current probe
+        ch_map = all_maps[probe_name]
+        # remap with known order of channels
+        ephys_arr = ephys_arr.iloc[:,[i-1 for i in list(ch_map)]]
+    return ephys_arr
+
+def volt_to_spikes(ephys, t0, spike_thresh=-350, fixT=True):
+
     ephys_offset_val = 0.1
     ephys_drift_rate = -0.000114
     samp_freq = 30000
 
-    if '128' in probe_name:
-        n_ch = 128
-    elif '64' in probe_name:
-        n_ch = 64
-
-    ephys_arr = read_ephys_binary(ephys_binary_path, n_ch, probe_name=probe_name)
-    ephys_arr = ephys_arr.to_numpy()
+    # center values on the mean
+    ephys = ephys.to_numpy()
+    ephys = ephys - np.mean(ephys,0)
 
     # highpass filter
-    filt_ephys = butter_bandpass(ephys_arr, lowcut=800, highcut=8000, fs=30000, order=6)
+    filt_ephys = utils.filt.butter_filt(ephys, lowcut=800, highcut=8000, order=5)
 
-    # read in timestamps
-    raw_ephysT = pd.DataFrame(read_time_file(ephysT_path))
-    # get first/last timepoint, num_samples
-    t0 = raw_ephysT.iloc[0,0]
-    num_samp = np.size(filt_ephys,0)
     # samples start at t0, and are acquired at rate of n_samples / freq
+    num_samp = np.size(filt_ephys,0)
     ephysT = np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq)
 
+    n_ch = np.size(filt_ephys,1)
     all_spikeT = []
     for ch in tqdm(range(n_ch)):
         # get the 
         spike_inds = list(np.where(filt_ephys[:,ch] < spike_thresh)[0])
         # get spike times
         spikeT = ephysT[spike_inds]
-        if do_timefix:
+        if fixT:
             # correct the spike times
             spikeT = spikeT - (ephys_offset_val + spikeT * ephys_drift_rate)
         all_spikeT.append(spikeT)
-
     spikeT_arr = np.array(all_spikeT)
-
     return spikeT_arr
-
-import numpy as np
-import pandas as pd
-from sklearn.neighbors import KernelDensity
-from tqdm import tqdm
-
-def calc_PSTH_kde(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win=1000):
-    """
-    bandwidth (in msec)
-    resample_size (msec)
-    edgedrop (msec to drop at the start and end of the window so eliminate artifacts of filtering)
-    win = 1000msec before and after
-    """
-    # some conversions
-    bandwidth = bandwidth/1000 # msec to sec
-    resample_size = resample_size/1000 # msec to sec
-    win = win/1000 # msec to sec
-    edgedrop = edgedrop/1000
-    edgedrop_ind = int(edgedrop/resample_size)
-
-    # setup time bins
-    bins = np.arange(-win-edgedrop, win+edgedrop+resample_size, resample_size)
-
-    # get timestamp of spikes relative to events in eventT
-    sps = []
-    for i, t in enumerate(eventT):
-        sp = spikeT-t
-        sp = sp[(sp <= (win+edgedrop)) & (sp >= (-win-edgedrop))] # only keep spikes in this window
-        sps.extend(sp)
-    sps = np.array(sps) # all values in here are between -1 and 1
-
-    # kernel density estimation
-    kernel = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(sps[:,np.newaxis])
-    density = kernel.score_samples(bins[:,np.newaxis])
-    psth = np.exp(density)*(np.size(sps)/np.size(eventT)) # convert back to spike rate
-    psth = psth[edgedrop_ind:-edgedrop_ind]
-
-    return psth
 
 def calc_PSTH(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win=1000):
     """
@@ -158,44 +138,93 @@ def keep_arrival_saccades(eventT, win=0.020):
     out = np.sort(np.setdiff1d(eventT, np.array(list(duplicates)), assume_unique=True))
     return out
 
-def calc_sta(self, lag=2, do_rotation=False, using_spike_sorted=True):
-        nks = np.shape(self.small_world_vid[0,:,:])
-        all_sta = np.zeros([self.n_cells, np.shape(self.small_world_vid)[1], np.shape(self.small_world_vid)[2]])
-        plt.subplots(np.ceil(self.n_cells/7).astype('int'), 7, figsize=(35,np.int(np.ceil(self.n_cells/3))), dpi=50)
-        if using_spike_sorted:
-            cell_inds = self.cells.index
-        elif not using_spike_sorted:
-            cell_inds = range(self.n_cells)
-        for c, ind in enumerate(cell_inds):
+def spikeT_to_rate(spikeT, maxT, dT=0.025):
+    """
+    get binned spike rate
+
+    array of arrays where spikes are indicated by a
+    timestamp to 2D array at binned intervals of a
+    spike rate
+    """
+    n_units = len(spikeT)
+    time = np.arange(0, maxT, dT)
+    n_sp = np.zeros([n_units, len(time)])
+    bins = np.append(time, time[-1]+dT)
+
+    for i in range(n_units):
+        n_sp[i,:], _ = np.histogram(spikeT[i], bins)
+    return n_sp
+
+def calc_STA(spikeT, stim_arr, sp_sorted=True):
+    
+    nks = np.shape(stim_arr[0,:,:])
+
+    if sp_sorted is True:
+        lags = np.arange(-2,8,2)
+        inds = 
+    elif sp_sorted is False:
+        lags = np.array([-2])
+        spikeT_to_rate(spikeT)
+        inds = np.arange()
+
+    for i, ind in enumerate():
+        for lag_ind, lag in enumerate(lags):
             sp = self.model_nsp[c,:].copy()
             sp = np.roll(sp, -lag)
             sta = self.model_vid.T @ sp
-            sta = np.reshape(sta, nks)
+            sta = np.reshape(sta,nks)
             nsp = np.sum(sp)
-            plt.subplot(np.ceil(self.n_cells/7).astype('int'), 7, c+1)
-            ch = int(self.cells.at[ind,'ch'])
-            if self.num_channels == 64 or self.num_channels == 128:
-                shank = np.floor(ch/32); site = np.mod(ch,32)
-            else:
-                shank = 0; site = ch
-            plt.title(f'ind={ind!s} nsp={nsp!s}\n ch={ch!s} shank={shank!s}\n site={site!s}',fontsize=5)
-            plt.axis('off')
+
+
             if nsp > 0:
                 sta = sta / nsp
                 sta = sta - np.mean(sta)
-                if do_rotation:
-                    sta = np.fliplr(np.flipud(sta))
-                plt.imshow(sta, vmin=-0.3 ,vmax=0.3, cmap='seismic')
+                plt.imshow(sta, vmin=-0.3, vmax=0.3, cmap='seismic')
             else:
-                sta = np.nan
-                # plt.imshow(np.zeros([120,160]))
-            all_sta[c,:,:] = sta
-        plt.tight_layout()
-        self.sta = all_sta
-        if self.figs_in_pdf:
-            self.detail_pdf.savefig(); plt.close()
-        elif not self.figs_in_pdf:
-            plt.show()
+                sta = np.ones(nks)*np.nan
+
+
+
+
+    nks = np.shape(self.small_world_vid[0,:,:])
+    all_sta = np.zeros([self.n_cells, np.shape(self.small_world_vid)[1], np.shape(self.small_world_vid)[2]])
+    plt.subplots(np.ceil(self.n_cells/7).astype('int'), 7, figsize=(35,np.int(np.ceil(self.n_cells/3))), dpi=50)
+
+    if using_spike_sorted:
+        cell_inds = self.cells.index
+    elif not using_spike_sorted:
+        cell_inds = range(self.n_cells)
+
+    for c, ind in enumerate(cell_inds):
+        sp = self.model_nsp[c,:].copy()
+        sp = np.roll(sp, -lag)
+        sta = self.model_vid.T @ sp
+        sta = np.reshape(sta, nks)
+        nsp = np.sum(sp)
+        plt.subplot(np.ceil(self.n_cells/7).astype('int'), 7, c+1)
+        ch = int(self.cells.at[ind,'ch'])
+        if self.num_channels == 64 or self.num_channels == 128:
+            shank = np.floor(ch/32); site = np.mod(ch,32)
+        else:
+            shank = 0; site = ch
+        plt.title(f'ind={ind!s} nsp={nsp!s}\n ch={ch!s} shank={shank!s}\n site={site!s}',fontsize=5)
+        plt.axis('off')
+        if nsp > 0:
+            sta = sta / nsp
+            sta = sta - np.mean(sta)
+            if do_rotation:
+                sta = np.fliplr(np.flipud(sta))
+            plt.imshow(sta, vmin=-0.3 ,vmax=0.3, cmap='seismic')
+        else:
+            sta = np.nan
+            # plt.imshow(np.zeros([120,160]))
+        all_sta[c,:,:] = sta
+    plt.tight_layout()
+    self.sta = all_sta
+    if self.figs_in_pdf:
+        self.detail_pdf.savefig(); plt.close()
+    elif not self.figs_in_pdf:
+        plt.show()
 
 
 

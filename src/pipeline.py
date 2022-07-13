@@ -8,7 +8,21 @@ import PySimpleGUI as sg
 
 from src.run import Session
 
-warnings.filterwarnings("ignore")
+
+### get_recording_names and paths
+    if self.config['internals']['follow_strict_directory_naming']:
+            recording_names = [i for i in list_subdirs(self.config['animal_directory']) if 'hf' in i or 'fm' in i]
+        elif not self.config['internals']['follow_strict_directory_naming']:
+            recording_names = list_subdirs(self.config['animal_directory'])
+        if self.config['options']['recording_list'] != []:
+            recording_names = [i for i in recording_names if i in self.config['options']['recording_list']]
+        recording_names = [i for i in recording_names if 'transfer' not in i and 'test' not in i]
+        recording_paths = [os.path.join(self.config['animal_directory'], recording_name) for recording_name in recording_names]
+        recordings_dict = dict(zip(recording_names, recording_paths))
+        # sort dictionary of {name: path} so freely-moving recordings are always handled first
+        sorted_keys = sorted(recordings_dict, key=lambda x:('fm' not in x, x))
+        self.recordings_dict = dict(zip(sorted_keys, [recordings_dict[k] for k in sorted_keys]))
+
 
 def get_args():
     parser = argparse.ArgumentParser()

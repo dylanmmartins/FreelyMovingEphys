@@ -1,6 +1,40 @@
 # params
 
-from src import video, path
+import src.utils as utils
+
+
+
+def behavior_preprocessing(rpath):
+    """
+    recording_path
+    """
+    rname = utils.path.make_recording_name(rpath)
+
+    date_str = recording_name.split('_')[0]
+                animal_str = recording_name.split('_')[1]
+                rec_str = recording_name.split('_')[3]
+
+    cams = 
+
+    .lower
+
+        
+                if find(recording_name+'_'+p+'.avi', recording_path) != []:
+                    recording_cams.append(p)
+
+
+if __name__ == '__main__':
+
+    # arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-r', '--rpath', type=str, default=None)
+    args = parser.parse_args()
+
+    behavior_preprocessing(args.rpath)
+
+
+
+
 
 def gather_camera_files(recpath, camname):
     

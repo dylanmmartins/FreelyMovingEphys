@@ -65,7 +65,19 @@ def str_to_bool(value):
         return True
     raise ValueError(f'{value} is not a valid boolean value')
 
-
+def probe_to_ch(probe):
+    """
+    returns number of channels and channel spacing (um)
+    """
+    if '16' in probe:
+        return 16, 25
+    if '64' in probe:
+        if probe=='DB_P64-8':
+            return 64, 25/2
+        else:
+            return 64, 25
+    if '128' in probe:
+        return 128, 25
 
 
 

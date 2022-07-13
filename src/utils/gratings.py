@@ -243,7 +243,7 @@ def analysis(cells):
    # Iterate through cells in the dataset.
    for ind, spikeT in cells['Gt_spikeT'].iteritems():
  
-       cells.at[ind, 'DfGt_stim_onset_PSTH'] = calc_PSTH(spikeT, stim_onset, edgedrop=30, win=2000)
+       cells.at[ind, 'DfGt_stim_onset_PSTH'] = calc_PSTH(spikeT, stim_onset, edgedrop=30, win=1500)
  
       
  

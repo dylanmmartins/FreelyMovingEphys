@@ -92,9 +92,10 @@ def nanmedfilt(A, sz=5):
    M[:,valid] = 0.5*(B.flatten('F')[i1.astype(int)-1] + B.flatten('F')[i2.astype(int)-1])
    M = np.reshape(M, np.shape(A))
    return M
- 
-def butter_filt(lfp, filt='low', lowcut=None, highcut=None,
-               fs=30000, order=6):
+
+### default values give you the LFP
+# filt_ephys = utils.filter.butter_filt(ephys, lowcut=1, highcut=300, order=5)
+def butter_filt(arr, lowcut=1, highcut=300, fs=30000, order=5):
        """ Apply filter to ephys LFP along time dimension, axis=0.
  
        Parameters:
@@ -109,20 +110,9 @@ def butter_filt(lfp, filt='low', lowcut=None, highcut=None,
        Returns:
        filt (np.array): filtered data with shape (time, channel)
        """
- 
-       if filt == 'high':
-           # for spikes
-           lowcut = 800
-           highcut = 8000
- 
-       elif filt == 'low':
-           # for LFP
-           lowcut = 1
-           highcut = 300
- 
        nyq = 0.5 * fs # Nyquist frequency
        low = lowcut / nyq # low cutoff
        high = highcut / nyq # high cutoff
        sos = butter(order, [low, high], btype='bandpass', output='sos')
-       filt = sosfiltfilt(sos, lfp, axis=0)
+       filt = sosfiltfilt(sos, arr, axis=0)
        return filt

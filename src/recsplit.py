@@ -1,43 +1,21 @@
-import argparse
+import argparse, os
 import PySimpleGUI as sg
+import scipy.io
+import numpy as np
+import pandas as pd
 
-from src.utils.auxiliary import str_to_bool
-from src.prelim import RawEphys
+import src.utils as utils
 
-def get_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-f', '--matfile', type=str, default=None)
-    args = parser.parse_args()
-    return args
+def split_recordings(mergemat_path):
+        samprate = 30000 # kHz
 
-if __name__ == '__main__':
-    
-    args = get_args()
-
-    if args.matfile is None:
-        # if no path was given as an argument, open a dialog box
-        matfile = sg.popup_get_file('Choose .mat file.')
-    else:
-        matfile = args.matfile
-
-    rephys = RawEphys(matfile)
-    rephys.format_spikes()
-
-
-class RawEphys(BaseInput):
-    def __init__(self, merge_file):
-        self.merge_file = merge_file
-        self.ephys_samprate = 30000
-
-    def format_spikes(self):
-        # open 
-        merge_info = loadmat(self.merge_file)
+        merge_info = scipy.io.loadmat(mergemat_path)
         fileList = merge_info['fileList']
         pathList = merge_info['pathList']
         nSamps = merge_info['nSamps']
 
-        # load phy2 output data
-        phy_path = os.path.split(self.merge_file)
+        # Load phy2 output data
+        phy_path, _ = os.path.split(mergemat_path)
         allSpikeT = np.load(os.path.join(phy_path[0],'spike_times.npy'))
         clust = np.load(os.path.join(phy_path[0],'spike_clusters.npy'))
         templates = np.load(os.path.join(phy_path[0],'templates.npy'))
@@ -67,17 +45,33 @@ class RawEphys(BaseInput):
             ephys_data['spikeT'] = np.NaN
             ephys_data['spikeT'] = ephys_data['spikeT'].astype(object)
             for c in np.unique(clust):
-                ephys_data.at[c,'spikeT'] =(theseSpikes[theseClust==c].flatten() - boundaries[s])/self.ephys_samprate
+                ephys_data.at[c,'spikeT'] =(theseSpikes[theseClust==c].flatten() - boundaries[s])/samprate
             
             # get timestamp from csv for this recording
             fname = fileList[0,s][0].copy()
             fname = fname[0:-4] + '_BonsaiBoardTS.csv'
-            self.timestamp_path = os.path.join(pathList[0,s][0],fname)
-            ephysT = self.read_timestamp_file()
+            timePath = os.path.join(pathList[0,s][0],fname)
+            ephysT = utils.time.read_time(timePath)
             ephys_data['t0'] = ephysT[0]
             
             # write ephys data into json file
             fname = fileList[0,s][0].copy()
-            fname = fname[0:-10] + '_ephys_merge.json'
-            ephys_json_path = os.path.join(pathList[0,s][0],fname)
-            ephys_data.to_json(ephys_json_path)
+            fname = fname[0:-10] + '_ephys_rec.h5'
+            savepath = os.path.join(pathList[0,s][0], fname)
+            ephys_data.to_hdf(savepath, mode='w')
+
+if __name__ == '__main__':
+
+    # arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-f', '--matfile', type=str, default=None)
+    args = parser.parse_args()
+
+    # if no path was given as an argument, open a dialog box
+    if args.matfile is None:
+        sg.theme('Default1')
+        matfile = sg.popup_get_file('Choose merge .mat file')
+    else:
+        matfile = args.matfile
+
+    split_recordings(matfile)

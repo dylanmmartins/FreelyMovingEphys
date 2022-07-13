@@ -1,7 +1,7 @@
 # preprocessing e.g. deinterlace, undistort, etc.
 
 import cv2
-import os, subprocess
+import os, subprocess, argparse
 import numpy as np
 from tqdm import tqdm
 
@@ -185,3 +185,36 @@ def fix_vid_contrast(path, savepath):
         newvid.write(newF)
 
     newvid.release()
+
+def avi_to_arr(path, ds=0.25):
+    vid = cv2.VideoCapture(path)
+    # array to put video frames into
+    # will have the shape: [frames, height, width] and be returned with dtype=int8
+    arr = np.empty([int(vid.get(cv2.CAP_PROP_FRAME_COUNT)),
+                        int(vid.get(cv2.CAP_PROP_FRAME_HEIGHT)*ds),
+                        int(vid.get(cv2.CAP_PROP_FRAME_WIDTH)*ds)], dtype=np.uint8)
+    # iterate through each frame
+    for f in range(0,int(vid.get(cv2.CAP_PROP_FRAME_COUNT))):
+        # read the frame in and make sure it is read in correctly
+        ret, img = vid.read()
+        if not ret:
+            break
+        # convert to grayscale
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # downsample the frame by an amount specified in the config file
+        img_s = cv2.resize(img, (0,0), fx=ds, fy=ds, interpolation=cv2.INTER_NEAREST)
+        # add the downsampled frame to all_frames as int8
+        arr[f,:,:] = img_s.astype(np.int8)
+    return arr
+
+def video_preprocessing(rpath):
+    
+
+if __name__ == '__main__':
+
+    # arguments
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-r', '--rpath', type=str, default=None)
+    args = parser.parse_args()
+
+    video_preprocessing(args.rpath)

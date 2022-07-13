@@ -1,9 +1,9 @@
 import os
 import pandas as pd
 import numpy as np
-from scipy.interpolate import interp1d
+import scipy.interpolate
 
-from src import filter, path, time, file
+import src.utils as utils
 
 
 def sparse_to_constant_timebase(sparse_time, fixedinter_time, speed, seek_win=0.030):
@@ -51,7 +51,7 @@ def treadmill_speed(path, savepath,
     csv_data = pd.read_csv(path)
 
     # from this, we can get the timestamps, as seconds since midnight before the recording
-    time = time.fmt_time(csv_data['Timestamp.TimeOfDay'])
+    time = utils.time.fmt_time(csv_data['Timestamp.TimeOfDay'])
 
     # convert center-subtracted pixels into cm
     x_pos = (csv_data['Value.X']-center_x) / optmouse_pxls2cm
@@ -62,8 +62,8 @@ def treadmill_speed(path, savepath,
     arange_time = np.arange(t0, t_end, set_samprate)
 
     # interpolation of xpos, ypos 
-    xinterp = interp1d(time, x_pos, bounds_error=False, kind='nearest')(arange_time)
-    yinterp = interp1d(time, y_pos, bounds_error=False, kind='nearest')(arange_time)
+    xinterp = scipy.interpolate.interp1d(time, x_pos, bounds_error=False, kind='nearest')(arange_time)
+    yinterp = scipy.interpolate.interp1d(time, y_pos, bounds_error=False, kind='nearest')(arange_time)
 
     # if no timestamp within 30ms, set interpolated val to 0
     full_x = sparse_to_constant_timebase(time, arange_time, xinterp)
@@ -74,7 +74,7 @@ def treadmill_speed(path, savepath,
     ypersec = full_y[:-1] / np.diff(arange_time)
 
     # speed
-    speed = filter.convfilt(np.sqrt(xpersec**2 + ypersec**2), 10)
+    speed = utils.filter.convfilt(np.sqrt(xpersec**2 + ypersec**2), 10)
 
     # collect all data
     data = {
@@ -86,4 +86,4 @@ def treadmill_speed(path, savepath,
         'speed_cmpersec': speed
     }
 
-    file.write_h5(savepath, data)
+    utils.file.write_h5(savepath, data)
