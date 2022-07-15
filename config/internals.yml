@@ -1,0 +1,59 @@
+
+# Default options
+# These are filled in if not given
+
+# Pipeline options
+steps:
+  deinterlace: true
+  fixDistortion: true
+  dlc: true
+  behavior: true
+  rec: true
+  stim: true
+
+# Restrict which recordings types are analyzed (case-sensitive))
+# e.g. [hf1_wn, fm1]
+# when this is left blank, every directory will be analyzed
+use_recordings: []
+ignore_recordings: []
+# restrict which recordings are analyzed or ignored (must be all lower case)
+# options: reye, leye, world, top1, top2, top3, side, treadmill, imu
+# if it's left blank, everything will be analyzed
+use_data: []
+ignore_data: []
+
+# DLC
+likeli_thresh: 0.99
+delete_dlc_files: false
+
+# Pupil fitting
+IRspot_is_labeled: true
+do_eyecam_spotsub: true
+canthus_is_labeled: true
+ellipticity_thresh: 0.85 # maximum ratio of ellipse shortaxis to longaxis during ellipse fit of pupil
+distance_thresh: 4.1 # maximum acceptable distance (cm) that each frame's point can be from the mean position of that eye point across the recording
+pupil_pxl2cm: 24 # scale factor for camera from pixels to cm on eye
+ellipse_calN: 8 # number of ellipse points required for calibration
+ellipse_useN: 7 # ellipse pts required to call a frame 'good'
+reflection_useN: 5 # IR reflection on pupil, pts needed to call a frame 'good'
+radius_max: 50 # (pixels) maximum acceptable number of pixels for radius of the pupil
+
+# Ephys
+ephys_samprate: 30000 # kHz
+
+# IMU
+imu_ds: 100
+imu_samprate: 30000 # kHz
+includes_TTL: false
+
+# Treadmill
+tdml_pxl2cm: 2840
+tdml_samprate: 200 # ms
+tdml_x: 960 # screen center that the mouse is reset to
+tdml_y: 540
+tdml_resamprate: 0.008 # sec
+
+# Preprocessing
+vid_ds: 0.25 # factor by which to downsample videos before packing into .nc
+rotate_eyecam: true
+rotate_worldcam: true

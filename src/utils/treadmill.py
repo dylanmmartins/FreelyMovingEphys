@@ -5,8 +5,15 @@ import scipy.interpolate
 
 import src.utils as utils
 
+def find_files(cfg, csv_path=None):
+    
+    if csv_path is None:
+        csv_path = utils.path.find('*BALLMOUSE_BonsaiTS_X_Y.csv'.format(cfg['rfname']), cfg['rpath'])
+        csv_path = utils.path.most_recent(csv_path)
 
-def sparse_to_constant_timebase(sparse_time, fixedinter_time, speed, seek_win=0.030):
+    return csv_path
+
+def set_timebase(sparse_time, fixedinter_time, speed, seek_win=0.030):
     """ Adjust optical mouse data to match timestamps with constat time base, filling zeros
     for steps in time with no recorded sample.
 
@@ -37,9 +44,7 @@ def sparse_to_constant_timebase(sparse_time, fixedinter_time, speed, seek_win=0.
             data_out[ind] = (speed[ind] if t >= (fixedinter_time[ind]-seek_win) and t <= fixedinter_time[ind] else 0)
     return data_out
 
-def treadmill_speed(path, savepath,
-                    set_samprate=0.008, center_x=960, center_y=540,
-                    optmouse_pxls2cm=2840):
+def preprocess_treadmill(cfg, csv_path=None):
     """ Track the movement of the ball for headfixed recordings.
 
     samprate
@@ -47,27 +52,29 @@ def treadmill_speed(path, savepath,
     # sparse_time must fall, otherwise a zero will be filled in
     """
 
+    csv_path = find_files(cfg, csv_path)
+
     # read in one csv file with timestamps, x position, and y position in three columns
-    csv_data = pd.read_csv(path)
+    csv_data = pd.read_csv(csv_path)
 
     # from this, we can get the timestamps, as seconds since midnight before the recording
     time = utils.time.fmt_time(csv_data['Timestamp.TimeOfDay'])
 
     # convert center-subtracted pixels into cm
-    x_pos = (csv_data['Value.X']-center_x) / optmouse_pxls2cm
-    y_pos = (csv_data['Value.Y']-center_y) / optmouse_pxls2cm
+    x_pos = (csv_data['Value.X'] - cfg['tdml_x']) / cfg['tdml_pxl2cm']
+    y_pos = (csv_data['Value.Y'] - cfg['tdml_y']) / cfg['tdml_pxl2cm']
 
     # set up new time base
     t0 = time[0]; t_end = time[-1]
-    arange_time = np.arange(t0, t_end, set_samprate)
+    arange_time = np.arange(t0, t_end, cfg['tdml_resamprate'])
 
     # interpolation of xpos, ypos 
     xinterp = scipy.interpolate.interp1d(time, x_pos, bounds_error=False, kind='nearest')(arange_time)
     yinterp = scipy.interpolate.interp1d(time, y_pos, bounds_error=False, kind='nearest')(arange_time)
 
     # if no timestamp within 30ms, set interpolated val to 0
-    full_x = sparse_to_constant_timebase(time, arange_time, xinterp)
-    full_y = sparse_to_constant_timebase(time, arange_time, yinterp)
+    full_x = set_timebase(time, arange_time, xinterp)
+    full_y = set_timebase(time, arange_time, yinterp)
 
     # cm per second
     xpersec = full_x[:-1] / np.diff(arange_time)
@@ -77,8 +84,8 @@ def treadmill_speed(path, savepath,
     speed = utils.filter.convfilt(np.sqrt(xpersec**2 + ypersec**2), 10)
 
     # collect all data
-    data = {
-        'timestamps': time,
+    savedata = {
+        'ballT': time,
         'cm_x': full_x,
         'cm_y': full_y,
         'x_persec': xpersec,
@@ -86,4 +93,7 @@ def treadmill_speed(path, savepath,
         'speed_cmpersec': speed
     }
 
-    utils.file.write_h5(savepath, data)
+    savepath = os.path.join(cfg['rpath'], '{}_treadmill.h5'.format(cfg['rfname']))
+    utils.file.write_h5(savepath, savedata)
+
+    return savedata

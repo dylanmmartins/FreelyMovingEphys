@@ -6,10 +6,16 @@ import numpy as np
 from tqdm import tqdm
 
 def make_savepath(path, key):
-    savedir = os.path.split(path)[0]
+    savedir, _ = os.path.split(path)
     savename = '.'.join((os.path.split(path)[1]).split('.')[:-1])
-    savepath = os.path.join(savedir, ('{}_{}.avi'.format(savename, key)))
+    savepath = os.path.join(savedir, ('{}{}.avi'.format(savename, key)))
     return savepath
+
+def find_file(cfg, tag='')
+
+    eye_avi = utils.path.find('{}*{}.avi'.format(eyecam_name), cfg['rpath'])
+
+    return avi_path
 
 def deinterlace(path, savepath=None, rotate180=True, expected_fps_in=30):
     """

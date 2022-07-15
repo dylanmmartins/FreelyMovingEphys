@@ -1,5 +1,7 @@
 import os
 import fnmatch
+import time
+import numpy as np
 
 def find(pattern, path):
     """ Glob for subdirectories.
@@ -31,7 +33,7 @@ def find(pattern, path):
     return result # return full list of file of a given type
 
 
-def list_subdirs(rootdir, keep_parent=False):
+def list_subdirs(rootdir, name_only=False):
     """ List subdirectories in a root directory.
 
     without keep_parent, the subdirectory itself is named
@@ -44,13 +46,13 @@ def list_subdirs(rootdir, keep_parent=False):
                 paths.append(item.path)
                 names.append(item.name)
 
-    if keep_parent:
+    if not name_only:
         return paths
-    elif not keep_parent:
+    elif name_only:
         return names
 
 
-def make_recording_name(path):
+def get_rfname(path):
     """ Parse file names in recording path to build name of the recording.
 
     Parameters
@@ -77,3 +79,15 @@ def make_recording_name(path):
     
     return name
 
+def most_recent(paths):
+    deltas = np.zeros(len(paths))
+    for i, f in enumerate(paths):
+        deltas[i] = time.time() - os.path.getmtime(f)
+    ind = np.argmin(deltas)
+    use_f = paths[ind]
+    return use_f
+
+def delete_dlc_files(directory):
+    f_list = find('*DLC*.h5', directory) + find('*DLC*.pickle', directory)
+    for f in f_list:
+        os.remove(f)

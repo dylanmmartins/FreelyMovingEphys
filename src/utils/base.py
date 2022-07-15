@@ -1,3 +1,5 @@
+import os, yaml
+import itertools
 import numpy as np
 
 def find_index_in_list(a, subset):
@@ -79,8 +81,21 @@ def probe_to_ch(probe):
     if '128' in probe:
         return 128, 25
 
+def all_caps(s):
+    return map(''.join, itertools.product(*zip(s.upper(), s.lower())))
 
+def fill_cfg(cfg, internals_path=None):
+    if internals_path is None:
+        utils_dir, _ = os.path.split(__file__)
+        src_dir, _ = os.path.split(utils_dir)
+        repo_dir, _ = os.path.split(src_dir)
+        internals_path = os.path.join(repo_dir, 'config/internals.yml')
 
+    with open(internals_path, 'r') as fp:
+        internals = yaml.load(fp)
+    
+    # Fill in internal values
+    missing = [k for k in internals.keys() if k not in cfg.keys()]
 
 
 """
@@ -691,12 +706,3 @@ class Camera(BaseInput):
         y_vals = xr.DataArray.to_pandas(y_pts).T
         likeli_pts = xr.DataArray.to_pandas(likeli_pts).T
         return x_vals, y_vals, likeli_pts
-
-    def safe_process(self, show=False):
-        try:
-            self.process()
-        except Exception as e:
-            if show:
-                print(e)
-            else:
-                pass

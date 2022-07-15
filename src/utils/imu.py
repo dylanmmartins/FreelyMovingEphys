@@ -1,89 +1,9 @@
-"""
-FreelyMovingEphys/src/imu.py
-"""
-import xarray as xr
-import pandas as pd
-import numpy as np
 import os, yaml
 from time import time
+import pandas as pd
+import numpy as np
 
-from src.base import BaseInput
-from src.utils.path import find
-
-class Imu(BaseInput):
-    def __init__(self, config, recording_name, recording_path):
-        BaseInput.__init__(self, config, recording_name, recording_path)
-
-    def gather_imu_files(self):
-        csv_paths = [x for x in find(('*BonsaiBoardTS*.csv'), self.recording_path) if x != []]
-        self.imu_timestamps_path = next(i for i in csv_paths if 'Ephys_' in i)
-        self.imu_path = find(self.recording_name+'_IMU.bin', self.recording_path)[0]
-
-    def process(self):
-        """ Read an 8-channel binary file of variable length
-        only channels 0-3, 4-7 will be saved out, channels, 3 and 7 are thrown out
-        expected binary channel order: acc first, empty channel, then gyro, then empty channel
-        returns a dataarray of constructed timestamps and imu readings from -5V to 5V
-        dataarray values are downsampled by value in input dictionary config
-        
-        Parameters:
-        imupath (str): imu binary file
-        timepath (str): timestamp csv file to imu data
-        config (dict): options
-        
-        Returns:
-        imu_out (xr.DataArray): xarray of IMU data
-        """
-        self.gather_imu_files()
-        # set up datatypes and names for each channel
-        dtypes = np.dtype([
-            ("acc_x",np.uint16),
-            ("acc_y",np.uint16),
-            ("acc_z",np.uint16),
-            ("none1",np.uint16),
-            ("gyro_x",np.uint16),
-            ("gyro_y",np.uint16),
-            ("gyro_z",np.uint16),
-            ("none2",np.uint16)
-        ])
-        # read in binary file
-        binary_in = pd.DataFrame(np.fromfile(self.imu_path, dtypes, -1, ''))
-        binary_in = binary_in.drop(columns=['none1','none2'])
-        if self.config['internals']['flip_gyro_xy']:
-            temp = binary_in.iloc[:,3].copy()
-            binary_in.iloc[:,3] = binary_in.iloc[:,4].copy()
-            binary_in.iloc[:,4] = temp
-            # binary_in.columns = ['acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z']
-        # convert to -5V to 5V
-        data = 10 * (binary_in.astype(float)/(2**16) - 0.5)
-        # downsample
-        data = data.iloc[::self.config['internals']['imu_dwnsmpl']]
-        data = data.reindex(sorted(data.columns), axis=1) # alphabetize columns
-        samp_freq = self.config['internals']['imu_samprate'] / self.config['internals']['imu_dwnsmpl']
-        # read in timestamps
-        csv_data = pd.read_csv(self.imu_timestamps_path).squeeze()
-        pdtime = pd.DataFrame(self.read_timestamp_series(csv_data))
-        # get first/last timepoint, num_samples
-        t0 = pdtime.iloc[0,0]; num_samp = np.size(data,0)
-        # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
-        newtime = list(np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq))
-        IMU = ImuOrientation()
-        # convert accelerometer to g
-        zero_reading = 2.9; sensitivity = 1.6
-        acc = pd.DataFrame.to_numpy((data[['acc_x', 'acc_y', 'acc_z']]-zero_reading)*sensitivity)
-        # convert gyro to deg/sec
-        gyro = pd.DataFrame.to_numpy((data[['gyro_x', 'gyro_y', 'gyro_z']]-pd.DataFrame.mean(data[['gyro_x', 'gyro_y', 'gyro_z']]))*400)
-        # collect roll & pitch
-        roll_pitch = np.zeros([len(acc),2])
-        for x in range(len(acc)):
-            roll_pitch[x,:] = IMU.process((acc[x],gyro[x])) # update by row
-        roll_pitch = pd.DataFrame(roll_pitch, columns=['roll','pitch'])
-        # collect the data together to return
-        all_data = pd.concat([data.reset_index(), pd.DataFrame(acc).reset_index(), pd.DataFrame(gyro).reset_index(), roll_pitch], axis=1).drop(labels='index',axis=1)
-        all_data.columns = ['acc_x_raw', 'acc_y_raw', 'acc_z_raw', 'gyro_x_raw', 'gyro_y_raw', 'gyro_z_raw','acc_x', 'acc_y', 'acc_z', 'gyro_x', 'gyro_y', 'gyro_z', 'roll', 'pitch']
-        output_data = xr.DataArray(all_data, dims=['sample','channel'])
-        self.data = output_data.assign_coords({'sample':newtime})
-        self.data.to_netcdf(os.path.join(self.recording_path, str(self.recording_name + '_imu.nc')))
+import src.utils as utils
 
 class Kalman():
     """
@@ -455,3 +375,135 @@ class ImuOrientation():
                 self.orientation[:] = np.squeeze(self.kalman.update(self._orientation))
 
         return self.orientation.copy()
+
+def find_files(cfg, bin_path=None, csv_path=None):
+    if bin_path is None:
+        bin_path = utils.path.find('{}_IMU.bin'.format(cfg['rfname']), cfg['rpath'])
+        bin_path = utils.path.most_recent(bin_path)
+
+    if csv_path is None:
+        csv_path = utils.path.find('{}*_Ephys_*BonsaiBoardTS*.csv'.format(cfg['rfname']), cfg['rpath'])
+        csv_path = utils.path.most_recent(csv_path)
+
+    return bin_path, csv_path
+
+def read_IMUbin(path):
+
+    # Set up the data types
+    dtypes = np.dtype([
+        ("acc_x",np.uint16), # accelerometer
+        ("acc_y",np.uint16),
+        ("acc_z",np.uint16),
+        ("ttl1",np.uint16), # TTL
+        ("gyro_x",np.uint16), # gyro
+        ("gyro_y",np.uint16),
+        ("gyro_z",np.uint16),
+        ("ttl2",np.uint16) # TTL
+    ])
+
+    data = pd.DataFrame(np.fromfile(path, dtypes, -1, ''))
+
+    return data
+
+def preprocess_TTL(cfg, bin_path=None, csv_path=None):
+
+    bin_path, csv_path = find_files(cfg, bin_path, csv_path)
+
+    # Read in the binary
+    ttl_data = read_IMUbin(bin_path)
+
+    # only keep the TTL channels
+    ttl_data = ttl_data.loc(columns=['ttl1','ttl2'])
+
+    # downsample
+    ds = cfg['imu_ds']
+    ttl_data = ttl_data.iloc[::ds]
+    ttl_data = ttl_data.reindex(sorted(ttl_data.columns), axis=1) # alphabetize columns
+    samp_freq = cfg['imu_samprate'] / ds
+
+    # read in timestamps
+    time = utils.time.read_time(csv_path)
+
+    # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
+    t0 = time[0]
+    nSamp = np.size(ttl_data, 0)
+    imuT = list(np.array(t0 + np.linspace(0, nSamp-1, nSamp) / samp_freq))
+
+    savedata = {
+        'ttl1': ttl_data['ttl1'],
+        'ttl2': ttl_data['ttl2'],
+        'imuT': imuT
+    }
+
+    savepath = os.path.join(cfg['rpath'], '{}_ttl.h5'.format(cfg['rfname']))
+    utils.file.write_h5(savepath, savedata)
+
+    return savedata
+    
+def preprocess_IMU(cfg, bin_path=None, csv_path=None):
+
+    # Find the files if they're weren't given as args
+    # If the paths already exist, this will not change them
+    bin_path, csv_path = find_files(cfg, bin_path, csv_path)
+
+    # Read in the binary
+    imu_data = read_IMUbin(bin_path)
+
+    # Drop channels 3 and 7, which are either empty or contain TTL signals
+    imu_data = imu_data.drop(columns=['ttl1','ttl2'])
+        
+    # convert to -5V to 5V
+    imu_data = 10 * (imu_data.astype(float)/(2**16) - 0.5)
+
+    # downsample
+    ds = cfg['imu_ds']
+    imu_data = imu_data.iloc[::ds]
+    imu_data = imu_data.reindex(sorted(imu_data.columns), axis=1) # alphabetize columns
+    samp_freq = cfg['imu_samprate'] / ds
+
+    # read in timestamps
+    time = utils.time.read_time(csv_path)
+
+    # samples start at t0, and are acquired at rate of 'ephys_sample_rate'/ 'imu_downsample'
+    t0 = time[0]
+    nSamp = np.size(imu_data, 0)
+    imuT = list(np.array(t0 + np.linspace(0, nSamp-1, nSamp) / samp_freq))
+
+    # convert accelerometer to g
+    zero_reading = 2.9; sensitivity = 1.6
+    acc = pd.DataFrame.to_numpy((imu_data[['acc_x', 'acc_y', 'acc_z']] - zero_reading) * sensitivity)
+    
+    # convert gyro to deg/sec
+    gyro = pd.DataFrame.to_numpy((imu_data[['gyro_x', 'gyro_y', 'gyro_z']] -
+                pd.DataFrame.mean(imu_data[['gyro_x', 'gyro_y', 'gyro_z']])) * 400)
+
+    # roll & pitch
+    IMU = ImuOrientation()
+    roll_pitch = np.zeros([len(acc), 2])
+
+    for x in range(len(acc)):
+        roll_pitch[x,:] = IMU.process((acc[x], gyro[x])) # update by row
+    roll_pitch = pd.DataFrame(roll_pitch, columns=['roll','pitch'])
+
+    # organize the data before saving it out
+    savedata = {
+        'acc_x_raw': imu_data['acc_x'].to_numpy(),
+        'acc_y_raw': imu_data['acc_y'].to_numpy(),
+        'acc_z_raw': imu_data['acc_z'].to_numpy(),
+        'gyro_x_raw': imu_data['gyro_x'].to_numpy(),
+        'gyro_y_raw': imu_data['gyro_y'].to_numpy(),
+        'gyro_z_raw': imu_data['gyro_z'].to_numpy(),
+        'acc_x': acc[0],
+        'acc_y': acc[1],
+        'acc_z': acc[2],
+        'gyro_x': gyro[0],
+        'gyro_y': gyro[1],
+        'gyro_z': gyro[2],
+        'roll': roll_pitch['roll'].to_numpy(),
+        'pitch': roll_pitch['pitch'].to_numpy(),
+        'imuT': imuT
+    }
+    savepath = os.path.join(cfg['rpath'], '{}_imu.h5'.format(cfg['rfname']))
+    utils.file.write_h5(savepath, savedata)
+
+    return savedata

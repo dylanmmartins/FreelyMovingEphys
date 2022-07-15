@@ -1,40 +1,32 @@
-# params
+import os, argparse
 
 import src.utils as utils
 
-
-
-def behavior_preprocessing(rpath):
+def behavior_preprocessing(cfg):
     """
     recording_path
     """
-    rname = utils.path.make_recording_name(rpath)
 
-    date_str = recording_name.split('_')[0]
-                animal_str = recording_name.split('_')[1]
-                rec_str = recording_name.split('_')[3]
+    cfg['rname'] = utils.path.make_recording_name(cfg['rpath'])
+
+    tmp_split = cfg['rpath'].split('_')
+    date_str = tmp_split[0]
+    animal_str = tmp_split[1]
+    rec_str = tmp_split[3]
 
     cams = 
-
-    .lower
-
         
-                if find(recording_name+'_'+p+'.avi', recording_path) != []:
-                    recording_cams.append(p)
+    if find(recording_name+'_'+p+'.avi', recording_path) != []:
+        recording_cams.append(p)
 
 
 if __name__ == '__main__':
 
-    # arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('-r', '--rpath', type=str, default=None)
     args = parser.parse_args()
 
     behavior_preprocessing(args.rpath)
-
-
-
-
 
 def gather_camera_files(recpath, camname):
     
@@ -68,3 +60,12 @@ def main():
 
     # Ball
     csv_path = find(self.recording_name+'_BALLMOUSE_BonsaiTS_X_Y.csv', self.recording_path)[0]
+
+
+
+
+    """
+    read in DLC h5 files
+    """
+    pupil_x, pupil_y, pupil_l = utils.file.read_dlc_positions(eye_dlc_h5_path, split_xyl=True)
+    utils.pupil.calc_theta_phi(cfg, )

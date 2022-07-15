@@ -1,9 +1,5 @@
-"""
-FreelyMovingEphys/src/utils/log.py
-"""
-
-class log:
-    def __init__(self,f,name = "", PRINT = True, retrain=False):
+class Log:
+    def __init__(self, f, name="", PRINT=True, retrain=False):
         text = ""
         if type(name) == list:
             text = "{}".format(name[0])
@@ -14,14 +10,15 @@ class log:
         self.FNAME = f
         if retrain:
             F = open(self.FNAME,"a")
-        else: 
+        else:
             F = open(self.FNAME,"w+")
         if len(text) != 0:
             F.write(text + "\n")
         F.close()
         if PRINT:
             print(text)
-    def log(self,data,PRINT = True):
+
+    def log(self, data, PRINT=True):
         text = ""
         if type(data) == list:
             text = "{}".format(data[0])

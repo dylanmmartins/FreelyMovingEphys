@@ -23,7 +23,7 @@ def read_ephysbin(path, n_ch, probe_name=None, chmap_path=None):
         if chmap_path is None:
             utils_dir, _ = os.path.split(__file__)
             src_dir, _ = os.path.split(utils_dir)
-            repo_dir, _ = os.path.splie(src_dir)
+            repo_dir, _ = os.path.split(src_dir)
             chmap_path = os.path.join(repo_dir, 'config/channel_maps.json')
         with open(chmap_path, 'r') as fp:
             all_maps = json.load(fp)

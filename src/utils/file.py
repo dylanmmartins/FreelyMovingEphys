@@ -77,7 +77,7 @@ def read_h5(filename, ASLIST=False):
             out = outl
         return out
 
-def read_dlc_positions(path, multianimal=False):
+def read_dlc_positions(path, multianimal=False, split_xyl=False):
 
     pts = pd.read_hdf(path)
 
@@ -89,4 +89,19 @@ def read_dlc_positions(path, multianimal=False):
     elif multianimal is True:
         pts.columns = ['_'.join(col[:][1:]).strip() for col in pts.columns.values]
 
-    return pts
+    if not split_xyl:
+        return pts
+
+    elif split_xyl:
+        x_pos = pd.Series([])
+        y_pos = pd.Series([])
+        likeli = pd.Series([])
+
+        for col in pts.columns.values:
+            if '_x' in col:
+                x_pos = pd.concat([x_pos, pts.loc[col]])
+            elif '_y' in col:
+                y_pos = pd.concat([y_pos, pts.loc[col]])
+            elif 'likeli' in col:
+                likeli = pd.concat([likeli, pts.loc[col]])
+        return x_pos, y_pos, likeli
