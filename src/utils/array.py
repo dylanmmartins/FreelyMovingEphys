@@ -9,7 +9,7 @@ def drop_nan_along(x, axis=1):
 def add_jitter(center, size, scale=0.2):
     return np.ones(size) + np.random.uniform(center-scale, center+scale, size)
 
-def series_to_array(s, flatten=False):
+def s2arr(s):
     """ Collapse pd.Series of lists to two dimensions.
 
     Input should be a pd.Series in which each index in
@@ -32,8 +32,8 @@ def series_to_array(s, flatten=False):
         axis 1 matching the length of the object lists in the input Series.
     """
     a = np.zeros([np.size(s,0), len(s.iloc[0])])
-    for i, data in enumerate(s):
-        a[i,:] = data
+    for i, vals in enumerate(s):
+        a[i,:] = vals
     return a
     
 def merge_uneven_xr(objs, dim_name='frame'):

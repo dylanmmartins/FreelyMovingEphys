@@ -202,8 +202,7 @@ if __name__ == '__main__':
     with open(cfg_path, 'r') as infile:
         cfg = yaml.load(infile, Loader=yaml.FullLoader)
 
-    date_str = datetime.today().strftime('%m%d%y')
-    time_str = datetime.today().strftime('%H-%M')
+    date_str, time_str = utils.base.str_today()
     log_path = os.path.join(cfg['apath'], 'errlog_{}_{}.txt'.format(date_str, time_str))
     logging = utils.log.Log(log_path)
 

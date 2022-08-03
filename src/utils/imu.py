@@ -501,7 +501,7 @@ def preprocess_IMU(cfg, bin_path=None, csv_path=None):
         'gyro_z': gyro[2],
         'roll': roll_pitch['roll'].to_numpy(),
         'pitch': roll_pitch['pitch'].to_numpy(),
-        'imuT': imuT
+        'timestamps': imuT
     }
     savepath = os.path.join(cfg['rpath'], '{}_imu.h5'.format(cfg['rfname']))
     utils.file.write_h5(savepath, savedata)

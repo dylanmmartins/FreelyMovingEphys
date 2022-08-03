@@ -1,6 +1,8 @@
 import os, argparse
-
+os.environ['DLClight'] = 'True'
+import deeplabcut
 import src.utils as utils
+
 
 def behavior_preprocessing(cfg):
     """
@@ -18,6 +20,12 @@ def behavior_preprocessing(cfg):
         
     if find(recording_name+'_'+p+'.avi', recording_path) != []:
         recording_cams.append(p)
+
+
+    vid_path
+    project_config_path
+
+    deeplabcut.analyze_videos(project_config_path, [vid_path])
 
 
 if __name__ == '__main__':

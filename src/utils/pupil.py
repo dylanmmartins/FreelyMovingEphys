@@ -578,6 +578,10 @@ def get_torsion_from_ridges(cfg, ell_dict, vidpath=None):
 
     print('Calculating pupil cross-section and fitting sigmoid (slow)')
     errCount = 0
+
+    rfit_out = np.zeros(totalF, 360)
+    rfit_conv_out = np.zeros(totalF, 360)
+
     for f in tqdm(np.arange(totalF)):
         try:
             # Read frame
@@ -653,28 +657,19 @@ def get_torsion_from_ridges(cfg, ell_dict, vidpath=None):
         # Get rid of outlier points
         rfit_conv[np.abs(rfit_conv) > 1.5] = np.nan
 
-        # Save out pupil edge data
-        if step == 0:
-            rfit_conv_xr = xr.DataArray(rfit_conv)
-            rfit_conv_xr['frame'] = step
-            rfit_conv_xr = xr.DataArray.rename(rfit_conv_xr, {'dim_0':'deg'})
+        # Save this out
+        rfit_out[f,:] = rfit
+        rfit_conv_out[f,:] = rfit_conv
 
-            rfit_xr = xr.DataArray(rfit)
-            rfit_xr['frame'] = step
-            rfit_xr = xr.DataArray.rename(rfit_xr, {'dim_0':'deg'})
-        
-        if step > 0:
-            rfit_conv_temp = xr.DataArray(rfit_conv)
-            rfit_conv_temp['frame'] = step
-            rfit_conv_temp = xr.DataArray.rename(rfit_conv_temp, {'dim_0':'deg'})
-            rfit_conv_xr = xr.concat([rfit_conv_xr, rfit_conv_temp], dim='frame', fill_value=np.nan)
+    ##############
 
-            rfit_temp = xr.DataArray(rfit)
-            rfit_temp['frame'] = step
-            rfit_temp = xr.DataArray.rename(rfit_temp, {'dim_0':'deg'})
-            rfit_xr = xr.concat([rfit_xr, rfit_temp], dim='frame', fill_value=np.nan)
+    # Save out pupil edge data
+    edgedata_dict = {
+        'rfit': rfit,
+        'rfit_conv': rfit_conv
+    }
 
-    # threshold out any frames with large or small rfit_conv distributions
+    # Threshold out any frames with large or small rfit_conv distributions
     for frame in range(0,np.size(rfit_conv_xr,0)):
         if np.min(rfit_conv_xr[frame,:]) < -10 or np.max(rfit_conv_xr[frame,:]) > 10:
             rfit_conv_xr[frame,:] = np.nan
