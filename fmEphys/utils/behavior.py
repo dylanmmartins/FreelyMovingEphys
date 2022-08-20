@@ -1,8 +1,8 @@
 import os, argparse
 os.environ['DLClight'] = 'True'
 import deeplabcut
-import src.utils as utils
 
+import fmEphys.utils as utils
 
 def behavior_preprocessing(cfg):
     """

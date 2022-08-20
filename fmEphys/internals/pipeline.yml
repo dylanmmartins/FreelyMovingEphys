@@ -16,7 +16,8 @@ steps:
 # when this is left blank, every directory will be analyzed
 use_recordings: []
 ignore_recordings: []
-# restrict which recordings are analyzed or ignored (must be all lower case)
+# restrict which recordings are analyzed or ignored (must be all lower case
+# even if the data have capitalization in them)
 # options: reye, leye, world, top1, top2, top3, side, treadmill, imu
 # if it's left blank, everything will be analyzed
 use_data: []

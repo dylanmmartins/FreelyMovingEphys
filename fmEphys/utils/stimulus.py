@@ -6,7 +6,7 @@ import scipy.interpolate
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-import src.utils as utils
+import fmEphys.utils as utils
 
 
 # ephys analysis that isn't stimulus-specific. just aligning everything.

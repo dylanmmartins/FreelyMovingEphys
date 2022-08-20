@@ -4,7 +4,7 @@ import cv2
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
  
-from src.filter import nanmedfilt
+from fmEphys.filter import nanmedfilt
 from ephys_base import calc_PSTH
  
  

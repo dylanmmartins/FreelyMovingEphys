@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import scipy.interpolate
 
-import src.utils as utils
+import fmEphys.utils as utils
 
 def find_files(cfg, csv_path=None):
     

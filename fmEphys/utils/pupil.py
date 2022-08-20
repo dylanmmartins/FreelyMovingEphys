@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from scipy import stats, signal, optimize
 from matplotlib.backends.backend_pdf import PdfPages
 
-from src import utils
+from fmEphys import utils
 
 def fit_ellipse(x, y):
     """ Fit an ellipse to points labeled around the perimeter of pupil.
@@ -127,27 +127,15 @@ def fit_ellipse(x, y):
     
     return ellipse_dict
 
-
-def find_files(cfg, dlc_path=None, csv_path=None):
-    """Find file from DeepLabCut and timestamps from Bonsai."""
-
-    if dlc_path is None:
-        dlc_path = utils.path.find('*{}*DLC*.h5'.format(cfg['dname']), cfg['rpath'])
-        dlc_path = utils.path.most_recent(dlc_path)
-    
-    if csv_path is None:
-        csv_path = utils.path.find('*{}*BonsaiTS.csv'.format(cfg['dname']), cfg['rpath'])
-        csv_path = utils.path.most_recent(csv_path)
-
-    return dlc_path
-
-
-def calc_theta_phi(cfg, dlc_path=None, csv_path=None):
+def calc_theta_phi(cfg, dlc_path=None):
     """
     cfg can be None and default options will be used
     """
 
-    dlc_path, csv_path = find_files(cfg, dlc_path, csv_path)
+    # Find files
+    if dlc_path is None:
+        dlc_path = utils.path.find('*{}*DLC*.h5'.format(cfg['dname']), cfg['rpath'])
+        dlc_path = utils.path.most_recent(dlc_path)
 
     pdf_savepath = os.path.join(cfg['rpath'],
             '{}_{}_diagnostics.pdf'.format(cfg['rname'], cfg['cname']))

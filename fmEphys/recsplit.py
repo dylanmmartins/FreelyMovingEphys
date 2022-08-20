@@ -4,7 +4,7 @@ import scipy.io
 import numpy as np
 import pandas as pd
 
-import src.utils as utils
+import fmEphys.utils as utils
 
 def split_recordings(mergemat_path):
         samprate = 30000 # kHz

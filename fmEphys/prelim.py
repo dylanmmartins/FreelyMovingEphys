@@ -3,7 +3,7 @@ import PySimpleGUI as sg
 import numpy as np
 import scipy.interpolate
 
-import src.utils as utils
+import fmEphys.utils as utils
 
 def prelimRF_raw(wn_dir, probe):
 
@@ -165,7 +165,7 @@ from matplotlib.backends.backend_pdf import PdfPages
 from scipy.interpolate import interp1d
 from datetime import datetime
 
-from src.utils.path import find
+from fmEphys.utils.path import find
 
 def plot_spike_rate_vs_var(use, var_range, goodcells, useT, t, var_label):
     """

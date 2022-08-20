@@ -13,7 +13,7 @@ from sklearn.neighbors import KernelDensity
 from tqdm import tqdm
 from zmq import THREAD_AFFINITY_CPU_ADD
 
-import src.utils as utils
+import fmEphys.utils as utils
 
 def read_ephysbin(path, n_ch, probe_name=None, chmap_path=None):
     """ Read in ephys binary and remap channels.
@@ -659,7 +659,6 @@ def apply_worldshift(worldVid, worldT, eyeT, theta, phi, x_c, y_c):
                                        (-np.int8(th * y_c[0] + ph * y_c[1]),    \
                                         -np.int8(th * x_c[0] + ph * x_c[1])))
 
-
     def pupil_tuning(self):
         # pupil radius
         self.longaxis = self.eye_params.sel(ellipse_params='longaxis').copy()
@@ -1245,3 +1244,5 @@ def movement_tuning(self):
     elif not self.fm:
         ball_speed_range = [0, 0.01, 0.1, 0.2, 0.5, 1.0]
         self.ballspeed_tuning_bins, self.ballspeed_tuning, self.ballspeed_tuning_err = self.calc_tuning(self.ball_speed, ball_speed_range, self.ballT, 'running speed')
+
+

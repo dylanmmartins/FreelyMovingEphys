@@ -2,7 +2,7 @@
 import argparse, os, json
 import PySimpleGUI as sg
 
-import src.utils as utils
+import fmEphys.utils as utils
 
 if __name__ == '__main__':
 

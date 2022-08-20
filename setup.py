@@ -1,6 +1,6 @@
-from setuptools import find_packages, setup
+import setuptools
 
-setup(
-    name='fmephys',
-    packages=find_packages(),
+setuptools.setup(
+    name = 'fmEphys',
+    packages = setuptools.find_packages(),
 )

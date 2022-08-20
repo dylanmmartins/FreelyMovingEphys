@@ -2,7 +2,7 @@ import numpy as np
 from tqdm import tqdm
 from scipy import interpolate
 
-import src.utils as utils
+import fmEphys.utils as utils
 
 def response_to_flips(rpath):
 

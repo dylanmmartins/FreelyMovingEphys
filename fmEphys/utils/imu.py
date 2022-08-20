@@ -3,7 +3,7 @@ from time import time
 import pandas as pd
 import numpy as np
 
-import src.utils as utils
+import fmEphys.utils as utils
 
 class Kalman():
     """

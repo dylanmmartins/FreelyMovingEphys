@@ -1,38 +1,31 @@
-# preprocessing e.g. deinterlace, undistort, etc.
-
 import cv2
 import os, subprocess, argparse
 import numpy as np
 from tqdm import tqdm
 
-def make_savepath(path, key):
+import fmEphys.utils as utils
+
+def make_vidpath(path, key):
     savedir, _ = os.path.split(path)
     savename = '.'.join((os.path.split(path)[1]).split('.')[:-1])
     savepath = os.path.join(savedir, ('{}{}.avi'.format(savename, key)))
     return savepath
 
-def find_file(cfg, tag='')
-
-    eye_avi = utils.path.find('{}*{}.avi'.format(eyecam_name), cfg['rpath'])
-
-    return avi_path
-
-def deinterlace(path, savepath=None, rotate180=True, expected_fps_in=30):
+def deinterlace(cfg, path,
+                savepath=None, rotate=True, exp_fps=30):
     """
-    `expected_fps` is the expected frame rate of aquisition. deinterlacing should doublet his
+    `expFps` is the expected frame rate of acquisition. deinterlacing should doublet his
     """
     if savepath is None:
-        savepath = make_savepath(path, 'deinter')
-  
-    # Open the video
-    cap = cv2.VideoCapture(path)
+        savepath = make_vidpath(path, 'deinter')
 
-    # Get total number of frames and the aquisition rate
+    # Open video, get frame count and rate
+    cap = cv2.VideoCapture(path)
     fs = cap.get(cv2.CAP_PROP_FRAME_COUNT)
     fps = cap.get(cv2.CAP_PROP_FPS)
 
-    if fps == expected_fps_in:
-        if rotate180:
+    if fps == exp_fps:
+        if rotate:
             vf_val = 'yadif=1:-1:0, vflip, hflip, scale=640:480'
         else:
             vf_val = 'yadif=1:-1:0, scale=640:480'
@@ -214,6 +207,8 @@ def avi_to_arr(path, ds=0.25):
     return arr
 
 def video_preprocessing(rpath):
+
+    # Deinterlace
     
 
 if __name__ == '__main__':

@@ -1,7 +1,20 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from src import utils
+from fmEphys import utils
+
+def jitter(c, sz, maxdist=0.2):
+    """
+
+    Args:
+        c: int of center.
+        sz: int of size.
+        maxdist: Maximum distance that a value can be jittered
+            from the center point, `c`.
+
+    Returns:
+    """
+    return np.ones(sz)+np.random.uniform(center-maxdist, center+maxdist, sz)
 
 def tuning()
     for i, c in enumerate(spikes.keys()):
@@ -65,42 +78,58 @@ def quick_GLM_RFs():
 
 def STV():
 
-def scatter_columns(ax, data
-                        labels=None, colors=None, use_median=False, markersize=2,
-                        template=None):
-    """ Categorical scatter plot
-    With categories as columns
+def cat_scatter(ax, vals, colors=None, median=True):
+    """Categorical scatter plot.
 
-    data should be a list of arrays, where each list item is an array of values for that category
-    not an array of arrays ebcause we want to be able to have different numbers of samples in each cat
-    
+    Args:
+        ax: Subplot
+        vals: List of numpy arrays. Each array in the list is the values for
+            a category that is plotted as a column.
+        colors: list of colors to use for each column.
+        median: Draw horizontal lines at the median of each column. If this
+            is False, the mean will be used instead.
+
+    Returns:
+
     """
+    num_cat = len(vals)
+    if colors is None or (len(colors) < num_cat):
+        colors =
 
-    labels = np.arange(0, len(data), 1)
+    for y_i, y in vals:
+        x = jitter(c=y_i, sz=np.size(y))
 
-    if template == 'eyemov':
-        labels = ['early', 'late', 'biphasic', 'negative']
+        # Scatter points
+        ax.plot(x, y, '.', color=colors[y_i], markersize=2)
 
-    for l, label in enumerate(labels):
+        # Median/mean and standard error
+        if median is True:
+            h = np.nanmedian(y)
+        elif median is False:
+            h = np.nanmean(y)
+        err = utils.base.stderr(y)
+        ax.hlines(h, y_i-0.2, y_i+0.2, color='k', linewidth=2)
+        ax.vlines(y_i, h-err, h+err, color='k', linewidth=2)
 
-        d = data[l]
+def temporal_seq(ax, arr, vdist=0.75):
+    """Plot temporal sequence of PSTHs.
 
-        x_jitter = add_jitter(center=l, size=np.size(d,0), scale=0.2)
+    Args:
+        ax: subplot
+        arr:
+        vdist:
 
-        ax.plot(x_jitter, d, '.', color=colors[c], markersize=markersize)
+    Returns:
+        img: Image of subplot. From this, a colormap legend can be added to the figure
 
-        # Add a horizontal line for the median
-        if use_median:
-            hline = np.nanmedian(cluster_data)
-        elif not use_median:
-            hline = np.nanmean(cluster_data)
-        ax.hlines(hline, c-0.2, c+0.2, color='k', linewidth=2)
+    """
+    aximg = panel.imshow(arr, cmap='coolwarm', vmin=-vdist, vmax=vdist)
+    panel.set_xlim([800,1400])
+    panel.set_xticks(np.linspace(800,1400,4), labels=np.linspace(-200,400,4).astype(int))
+    panel.vlines(1000, 0, np.size(arr,0), color='k', linestyle='dashed', linewidth=1)
+    panel.set_ylim([np.size(tseq, 0), 0])
 
-        # Add a vertical line for the std err
-        err = stderr(cluster_data)
-        ax.vlines(c, hline-err, hline+err, color='k', linewidth=2)
-
-        ax.set_xticks(range(4), ['early','late','biphasic','negative'])
+    return aximg
 
 def write_spike_audio(self, start=0):
     units = self.cells.index.values

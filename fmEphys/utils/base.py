@@ -82,7 +82,7 @@ def probe_to_ch(probe):
     if '128' in probe:
         return 128, 25
 
-def all_caps(s):
+def get_all_caps(s):
     return map(''.join, itertools.product(*zip(s.upper(), s.lower())))
 
 def fill_cfg(cfg, internals_path=None):

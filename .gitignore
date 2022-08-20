@@ -130,9 +130,17 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+
 .vs/FreelyMovingEphys/v16/.suo
 .vs/ProjectSettings.json
 .vs/slnx.sqlite
 .vs/VSWorkspaceState.json
 .vscode/settings.json
 .vscode/launch.json
+.idea/vcs.xml
+.gitignore
+.gitignore
+.idea/modules.xml
+.idea/FreelyMovingEphys-dmm.iml
+.idea/inspectionProfiles/profiles_settings.xml

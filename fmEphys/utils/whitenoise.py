@@ -8,7 +8,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-import src.utils as utils
+import fmEphys.utils as utils
 
 class HeadFixedWhiteNoise(Ephys):
     def __init__(self, config, recording_name, recording_path):
