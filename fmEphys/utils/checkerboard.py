@@ -1,23 +1,20 @@
 import numpy as np
+import cv2
 from tqdm import tqdm
-from scipy import interpolate
+import scipy.interpolate
+import fmEphys
 
-import fmEphys.utils as utils
+def response_to_flash(rpath):
 
-def response_to_flips(rpath):
+    stim_path = fmEphys.utils.path.find()
+    stim_data = fmEphys.utils.file.read_h5()
 
-    stim_path = utils.path.find()
-    data = utils.file.read_h5()
-
-    stim_vid = stim_data['video'].astype(np.uint8)
+    vid = stim_data['video'].astype(np.uint8)
     stimT = stim_data['timestamps']
 
-    eyeT = 
-
-
-
-    eyeT = self.Rc_ephys['Rc_eyeT'].iloc[0]
-    ephysT0 = self.Rc_ephys['t0'].iloc[0]
+    eyeT = stim_data['eyeT']
+    ephysT0 = stim_data['t0']
+    worldT = stim_data['worldT']
 
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.85)
     num_frames = np.size(vid, 0); vid_width = np.size(vid, 1); vid_height = np.size(vid, 2)
@@ -28,8 +25,8 @@ def response_to_flips(rpath):
     
     label_diff = np.diff(np.ndarray.flatten(labels))
  
-    stim_state = interpolate.interp1d(worldT[:-1]-ephysT0, label_diff, bounds_error=False)(eyeT)
-    eventT = eyeT[np.where((stim_state<-0.1)+(stim_state>0.1))]
+    stim_state = scipy.interpolate.interp1d(worldT[:-1]-ephysT0, label_diff, bounds_error=False)(eyeT)
+    eventT = eyeT[np.where((stim_state < -0.1)+(stim_state > 0.1))]
 
     Rc_psth = np.zeros([len(self.Rc_ephys.index.values), 2001]) # shape = [unit#, time]
     
