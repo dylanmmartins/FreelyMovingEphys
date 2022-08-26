@@ -10,47 +10,10 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 import fmEphys
 
-class HeadFixedWhiteNoise(Ephys):
-    def __init__(self, config, recording_name, recording_path):
-        Ephys.__init__(self, config, recording_name, recording_path)
-        self.fm = False
-        self.stim = 'wn'
+def main():
 
-    def overview_fig(self):
-        plt.figure(figsize=(5, int(np.ceil(self.n_cells/2))), dpi=50)
 
-        for i, ind in enumerate(self.cells.index):
 
-            # plot waveform
-            plt.subplot(self.n_cells, 4, i*4+1)
-            wv = self.cells.at[ind,'waveform']
-            plt.plot(np.arange(len(wv))*1000/self.ephys_samprate, wv)
-            plt.xlabel('msec'); plt.title(str(ind)+' '+self.cells.at[ind,'KSLabel']+' cont='+str(self.cells.at[ind,'ContamPct']))
-            
-            # plot contrast response function
-            plt.subplot(self.n_cells, 4, i*4+2)
-            plt.errorbar(self.crf_cent, self.crf_tuning[i], yerr=self.crf_err[i])
-            plt.xlabel('contrast a.u.'); plt.ylabel('sp/sec')
-            plt.ylim(0, np.nanmax(self.crf_tuning*1.2))
-
-            # plot sta
-            plt.subplot(self.n_cells, 4, i*4+3)
-            sta = self.sta[i,:,:]
-            sta_range = np.nanmax(np.abs(sta))*1.2
-            if sta_range < 0.25:
-                sta_range = 0.25
-            plt.imshow(sta, vmin=-sta_range, vmax=sta_range, cmap='seismic')
-            
-            # plot eye movements
-            plt.subplot(self.n_cells, 4, i*4+4)
-            plt.plot(self.trange_x, self.rightsacc_avg[i,:], color='tab:blue',label='right')
-            plt.plot(self.trange_x, self.leftsacc_avg[i,:],color='red',label='left')
-            maxval = np.max(np.maximum(self.rightsacc_avg[i,:], self.leftsacc_avg[i,:]))
-            plt.vlines(0, 0, maxval*1.5, linestyles='dotted', colors='k')
-            plt.ylim([0, maxval*1.2]); plt.ylabel('sp/sec'); plt.legend()
-        
-        plt.tight_layout()
-        plt.tight_layout(); self.overview_pdf.savefig(); plt.close()
 
     def glm_save(self):
         unit_data = pd.DataFrame([])

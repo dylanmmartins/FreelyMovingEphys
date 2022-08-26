@@ -1,8 +1,4 @@
-"""
-FreelyMovingEphys/src/topcam.py
-"""
 import numpy as np
-import xarray as xr
 import os, cv2, platform
 from tqdm import tqdm
 import matplotlib.pyplot as plt
@@ -10,14 +6,33 @@ import pandas as pd
 from matplotlib import cm
 import matplotlib.backends.backend_pdf
 import matplotlib as mpl
-if platform.system() == 'Linux':
-    mpl.rcParams['animation.ffmpeg_path'] = '/usr/bin/ffmpeg'
-else:
-    mpl.rcParams['animation.ffmpeg_path'] = r'C:\Program Files\ffmpeg\bin\ffmpeg.exe'
 from matplotlib.animation import FFMpegWriter
 
-from fmEphys.base import Camera
-from fmEphys.utils.filter import nanmedfilt, convfilt
+import fmEphys
+
+def filter_likelihood(cfg, position_data):
+    thresh = cfg['lik_thresh']
+
+    pt_names = list(position_data.keys())
+    x_cols = [i for i in pt_names if '_x' in i]
+    y_cols = [i for i in pt_names if '_y' in i]
+    l_cols = [i for i in pt_names if '_likelihood' in i]
+
+    for i in range(len(x_cols)):
+        
+
+        x = self.xrpts.sel(point_loc=x_cols[i])
+        y = self.xrpts.sel(point_loc=y_cols[i])
+        l = self.xrpts.sel(point_loc=l_cols[i])
+
+        x[l<thresh] = np.nan
+        y[l<thresh] = np.nan
+
+        self.xrpts.loc[dict(point_loc=x_cols[i])] = x
+        self.xrpts.loc[dict(point_loc=y_cols[i])] = y
+
+def main():
+    default_pcls2cm
 
 class Topcam(Camera):
     def __init__(self, config, recording_name, recording_path, camname):

@@ -24,8 +24,17 @@ use_data: []
 ignore_data: []
 
 # DLC
-likeli_thresh: 0.99
+lik_thresh: 0.99
 delete_dlc_files: false
+
+# Topcam
+top_arena_cm: 39 # distance across arena in horizontal direction in cm (used to convert pxls to cm)
+top_pxls2cm: 0.06764573 # this is only a default value used if DLC couldn't track corners of the arena
+# if body yaw is within +/- X deg of movement vector, the mouse is moving forward
+# and, if the body yaw is +/- 180-X deg of movement vector, the mouse is moving backwards
+forward_thresh: 40 # deg
+# if body is moving faster than X cm/sec, mouse is running
+running_thresh: 2 # cm/sec
 
 # Pupil fitting
 IRspot_is_labeled: true

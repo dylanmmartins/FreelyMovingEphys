@@ -1,13 +1,16 @@
+"""
+behavior.py
+
+Quantify camera data (e.g. eye position, topdown position, etc.)
+"""
+
 import os, argparse
 os.environ['DLClight'] = 'True'
 import deeplabcut
 
-import fmEphys.utils as utils
+import fmEphys
 
 def behavior_preprocessing(cfg):
-    """
-    recording_path
-    """
 
     cfg['rname'] = utils.path.make_recording_name(cfg['rpath'])
 
@@ -32,9 +35,22 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-r', '--rpath', type=str, default=None)
+    parser.add_argument('--add_internals', type=str, default=None)
     args = parser.parse_args()
 
+    # Either read in the arg json or load default values
+    fmEphys.internals.internals.read(args.add_internals)
+
+
+
     behavior_preprocessing(args.rpath)
+
+
+
+##########################
+
+
+
 
 def gather_camera_files(recpath, camname):
     

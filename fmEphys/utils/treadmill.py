@@ -3,15 +3,7 @@ import pandas as pd
 import numpy as np
 import scipy.interpolate
 
-import fmEphys.utils as utils
-
-def find_files(cfg, csv_path=None):
-    
-    if csv_path is None:
-        csv_path = utils.path.find('*BALLMOUSE_BonsaiTS_X_Y.csv'.format(cfg['rfname']), cfg['rpath'])
-        csv_path = utils.path.most_recent(csv_path)
-
-    return csv_path
+import fmEphys
 
 def set_timebase(sparse_time, fixedinter_time, speed, seek_win=0.030):
     """ Adjust optical mouse data to match timestamps with constat time base, filling zeros
@@ -52,7 +44,9 @@ def preprocess_treadmill(cfg, csv_path=None):
     # sparse_time must fall, otherwise a zero will be filled in
     """
 
-    csv_path = find_files(cfg, csv_path)
+    if csv_path is None:
+        csv_path = utils.path.find('*BALLMOUSE_BonsaiTS_X_Y.csv'.format(cfg['rfname']), cfg['rpath'])
+        csv_path = utils.path.most_recent(csv_path)
 
     # read in one csv file with timestamps, x position, and y position in three columns
     csv_data = pd.read_csv(csv_path)
@@ -97,3 +91,14 @@ def preprocess_treadmill(cfg, csv_path=None):
     utils.file.write_h5(savepath, savedata)
 
     return savedata
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--path', type=str, default=None)
+    parser.add_argument('--add_internals', type=str, default=None)
+    args = parser.parse_args()
+
+    intopts = fmEphys.internals.internals.read()
+
+    preprocess_treadmill(args.path)

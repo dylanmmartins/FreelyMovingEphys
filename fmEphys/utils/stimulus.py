@@ -1,3 +1,7 @@
+"""
+Ephys analysis that isn't stimulus-specific. just aligning everything.
+"""
+
 import os
 import cv2
 import numpy as np
@@ -6,10 +10,7 @@ import scipy.interpolate
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-import fmEphys.utils as utils
-
-
-# ephys analysis that isn't stimulus-specific. just aligning everything.
+import fmEphys
 
 def timing_alignment(ephysT0, eyeT, worldT,
                     topT=None, ballT=None, imuT=None):
@@ -24,13 +25,11 @@ def timing_alignment(ephysT0, eyeT, worldT,
         worldT += 8*60*60
 
     if topT is not None:
-        topT = topT - ephysT0
+        topT -= ephysT0
     if ballT is not None:
-        ballT = ballT - ephysT0
+        ballT -= ephysT0
     if imuT is not None:
-        imuT = imuT - ephysT0
-
-
+        imuT -= ephysT0
 
 def head_fixed(rpath):
 
