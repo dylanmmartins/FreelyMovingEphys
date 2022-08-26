@@ -2,7 +2,7 @@ import argparse, os, yaml
 import PySimpleGUI as sg
 from datetime import datetime
 
-import fmEphys.utils as utils
+import fmEphys
 
 def get_rdict(cfg):
     """Make dict of recording paths.
@@ -14,7 +14,7 @@ def get_rdict(cfg):
 
     """
 
-    rname_list = utils.path.list_subdirs(cfg, name_only=True)
+    rname_list = fmEphys.utils.path.list_subdirs(cfg, name_only=True)
 
     if cfg['use_recordings'] != []:
         rname_list = [name for name in rname_list if name in cfg['use_recordings'] ]
@@ -53,18 +53,20 @@ def get_ddict(cfg):
     # Fill in the camera names
     for cam in ddict.keys():
         # try combinations of lower/upper caps
-        for test_c in utils.base.get_all_caps(cam):
+        for test_c in fmEphys.utils.base.get_all_caps(cam):
             # if an avi video exists, save that as the name
-            test_list = utils.path.find('{}_{}.avi'.format(cfg['rfname'], test_c), cfg['rpath'])
+            test_list = fmEphys.utils.path.find('{}_{}.avi'.format(cfg['rfname'], test_c), cfg['rpath'])
             if len(test_list) > 0:
                 # Add the name (e.g. 'Reye')
                 ddict[cam]['name'] = test_c
                 # Add the .avi video
-                temp_path = utils.path.find('{}_{}.avi'.format(cfg['rfname'], test_c), cfg['rpath'])
-                temp_path = [p for p in temp_path if any(['deinter'] not in p)
-                ddict[cam]['r_avi']
-                dlc_path = utils.path.find('*{}*DLC*.h5'.format(cfg['dname']), cfg['rpath'])
-                dlc_path = utils.path.most_recent(dlc_path)
+                avi_paths = fmEphys.utils.path.find('{}_{}.avi'.format(cfg['rfname'], test_c), cfg['rpath'])
+                temp_path = [p for p in avi_paths if any(['deinter','calib'] not in p)]
+                if len(temp_path) > 0:
+                    ddict[cam]['raw_avi'] = fmEphys.utils.path.most_recent(temp_path)
+                temp_path[0]
+                dlc_path = fmEphys.utils.path.find('*{}*DLC*.h5'.format(cfg['dname']), cfg['rpath'])
+                dlc_path = fmEphys.utils.path.most_recent(dlc_path)
                 # Add the .csv timestamps
 
 
@@ -72,12 +74,12 @@ def get_ddict(cfg):
 
     # if the imu file exists
     ddict['imu'] = None
-    if len(utils.path.find('{}_IMU.bin'.format(cfg['rfname']), cfg['rpath'])) > 0:
+    if len(fmEphys.utils.path.find('{}_IMU.bin'.format(cfg['rfname']), cfg['rpath'])) > 0:
         ddict['imu'] = True
 
     # if the treadmill file exists
     ddict['treadmill'] = None
-    if len(utils.path.find('*BALLMOUSE_BonsaiTS_X_Y.csv'.format(cfg['rfname']), cfg['rpath'])) > 0:
+    if len(fmEphys.utils.path.find('*BALLMOUSE_BonsaiTS_X_Y.csv'.format(cfg['rfname']), cfg['rpath'])) > 0:
         ddict['treadmill'] = True
 
     if cfg['use_data'] != []:
@@ -101,10 +103,10 @@ def main(cfg):
         cfg['rpath'] = rpath
 
         if cfg['delete_dlc_files']:
-            utils.path.delete_dlc_files(cfg['rpath'])
+            fmEphys.utils.path.delete_dlc_files(cfg['rpath'])
 
         # Recording file base name
-        cfg['rfname'] = utils.path.get_rfname(cfg['rpath'])
+        cfg['rfname'] = fmEphys.utils.path.get_rfname(cfg['rpath'])
 
         # Get a list of the data inputs
         # i.e. is there a worldcam, eyecam, topcam, imu, treadmill, etc.?
@@ -115,7 +117,7 @@ def main(cfg):
 
             if ddict['reye'] is not None:
 
-                utils.video.deinterlace(cfg, path, rotate=cfg['rotate_eyecam'])
+                fmEphys.utils.video.deinterlace(cfg, path, rotate=cfg['rotate_eyecam'])
 
 
 

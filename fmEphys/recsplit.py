@@ -3,8 +3,7 @@ import PySimpleGUI as sg
 import scipy.io
 import numpy as np
 import pandas as pd
-
-import fmEphys.utils as utils
+import fmEphys
 
 def split_recordings(mergemat_path):
         samprate = 30000 # kHz
@@ -51,7 +50,7 @@ def split_recordings(mergemat_path):
             fname = fileList[0,s][0].copy()
             fname = fname[0:-4] + '_BonsaiBoardTS.csv'
             timePath = os.path.join(pathList[0,s][0],fname)
-            ephysT = utils.time.read_time(timePath)
+            ephysT = fmEphys.utils.time.read_time(timePath)
             ephys_data['t0'] = ephysT[0]
             
             # write ephys data into json file
@@ -62,7 +61,6 @@ def split_recordings(mergemat_path):
 
 if __name__ == '__main__':
 
-    # arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--matfile', type=str, default=None)
     args = parser.parse_args()

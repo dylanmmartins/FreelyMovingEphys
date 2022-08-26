@@ -12,7 +12,7 @@ def make_vidpath(path, key):
     return savepath
 
 def deinterlace(cfg, path,
-                savepath=None, rotate=True, exp_fps=30):
+                savepath=None, rotate=True, exp_fps=30,):
     """
     `expFps` is the expected frame rate of acquisition. deinterlacing should doublet his
     """
@@ -32,6 +32,8 @@ def deinterlace(cfg, path,
         subprocess.call(['ffmpeg', '-i', path, '-vf', vf_val, '-c:v', 'libx264',
                         '-preset', 'slow', '-crf', '19', '-c:a', 'aac', '-b:a',
                         '256k', '-y', savepath])
+
+        ['-loglevel', 'quiet']
 
 def rotate_video(path, savepath=None, h=False, v=False):
     if savepath is None:

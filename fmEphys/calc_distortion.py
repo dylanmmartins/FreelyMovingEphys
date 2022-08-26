@@ -2,7 +2,7 @@
 import argparse, os, json
 import PySimpleGUI as sg
 
-import fmEphys.utils as utils
+import fmEphys
 
 if __name__ == '__main__':
 
@@ -19,7 +19,7 @@ if __name__ == '__main__':
         savepath = sg.popup_get_folder('Save folder')
 
     if '.npz' not in savepath:
-        str_date, _ = utils.base.str_today()
+        str_date, _ = fmEphys.utils.base.str_today()
         savepath = os.path.join(savepath, 'cam_mtx_{}.npz'.format(str_date))
 
-    utils.video.calc_distortion(vidpath, savepath)
+    fmEphys.utils.video.calc_distortion(vidpath, savepath)
