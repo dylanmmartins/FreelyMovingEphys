@@ -30,3 +30,4 @@ dependencies:
     - netcdf4
     - opencv-python
     - scipy==1.6.2
+    - ray
