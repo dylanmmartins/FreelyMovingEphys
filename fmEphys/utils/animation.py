@@ -1,61 +1,15 @@
-"""
-ANIMATION EXAMPLE:
-
-import fmEphys
-import ray
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-
-@ray.remote
-def plot_frame_img(t, x, y1, y2, pbar:ActorHandle,):
-
-    ### Set up the figure
-    fig, [ax0,ax1] = plt.subplots(1,2, constrained_layout=True, figsize=(3,3), dpi=200)
-    
-    ### Plot variables
-    ax0.plot(x, y1[t,:,:])
-    ax1.plot(x, y2[t,:,:])
-
-    ### Save the figure out as an image
-    plt.tight_layout()
-
-    img = fmEphys.utils.animation.fig_to_img(fig)
-    
-    plt.close()
-    pbar.update.remote(1)
-    return img
-
-mpl.use('agg')
-
-numFr = len(t_vals)
-
-pb = fmEphys.utils.animation.ProgressBar(numFr)
-actor = pb.actor
-
-x_r = ray.put(x)
-y1_r = ray.put(y1)
-y2_r = ray.put(y2)
-
-result_ids = []
-
-for t in t_vals:
-    
-    result_ids.append(plot_frame_img.remote(t, x_r, y1_r, y2_r, actor))
-
-# Generate each image, stack them togther, and save it as an mp4 file
-fmEphys.utils.animation.stack_animation(pb, result_ids, '/path/to/save/file.mp4', speed=0.25)
-
+"""Animation using parallel processing.
 """
 
 import subprocess
-import ray
 import wave
+
+import ray
 import numpy as np
 from ray.actor import ActorHandle
 from asyncio import Event
 from typing import Tuple
 from time import sleep
-
 from asyncio import Event
 from typing import Tuple
 from time import sleep

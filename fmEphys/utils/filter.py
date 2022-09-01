@@ -96,23 +96,23 @@ def nanmedfilt(A, sz=5):
 ### default values give you the LFP
 # filt_ephys = utils.filter.butter_filt(ephys, lowcut=1, highcut=300, order=5)
 def butter_filt(arr, lowcut=1, highcut=300, fs=30000, order=5):
-       """ Apply filter to ephys LFP along time dimension, axis=0.
- 
-       Parameters:
-       lfp (np.array): ephys LFP with shape (time, channel)
-       filt (str): should be either 'band' or 'high' for a bandpass or
-           lowpass filter
-       lowcut (int): low end of frequency cut off
-       highcut (int): high end of frequency cut off
-       fs (int): sample rate
-       order (int): order of filter
- 
-       Returns:
-       filt (np.array): filtered data with shape (time, channel)
-       """
-       nyq = 0.5 * fs # Nyquist frequency
-       low = lowcut / nyq # low cutoff
-       high = highcut / nyq # high cutoff
-       sos = butter(order, [low, high], btype='bandpass', output='sos')
-       filt = sosfiltfilt(sos, arr, axis=0)
-       return filt
+    """ Apply filter to ephys LFP along time dimension, axis=0.
+
+    Parameters:
+    lfp (np.array): ephys LFP with shape (time, channel)
+    filt (str): should be either 'band' or 'high' for a bandpass or
+        lowpass filter
+    lowcut (int): low end of frequency cut off
+    highcut (int): high end of frequency cut off
+    fs (int): sample rate
+    order (int): order of filter
+
+    Returns:
+    filt (np.array): filtered data with shape (time, channel)
+    """
+    nyq = 0.5 * fs # Nyquist frequency
+    low = lowcut / nyq # low cutoff
+    high = highcut / nyq # high cutoff
+    sos = butter(order, [low, high], btype='bandpass', output='sos')
+    filt = sosfiltfilt(sos, arr, axis=0)
+    return filt

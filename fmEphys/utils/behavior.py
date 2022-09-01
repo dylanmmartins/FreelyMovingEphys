@@ -1,10 +1,8 @@
+"""Quantify behavior from inputs.
+e.g. eye position, allocentric topdown position, etc.
 """
-behavior.py
-
-Quantify camera data (e.g. eye position, topdown position, etc.)
-"""
-
-import os, argparse
+import os
+import argparse
 os.environ['DLClight'] = 'True'
 import deeplabcut
 
@@ -12,7 +10,7 @@ import fmEphys
 
 def behavior_preprocessing(cfg):
 
-    cfg['rname'] = utils.path.make_recording_name(cfg['rpath'])
+    cfg['rname'] = fmEphys.utils.path.make_recording_name(cfg['rpath'])
 
     tmp_split = cfg['rpath'].split('_')
     date_str = tmp_split[0]

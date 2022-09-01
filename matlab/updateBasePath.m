@@ -8,7 +8,7 @@
 % The old .mat will NOT be overwritten. Read in the .mat ending in
 % '_update.mat' when splitting the recordings back out.
 
-existingMatFile = '\\goeppert\nlab-nas\Dylan\freely_moving_ephys\ephys_recordings\100821\J559TT\100821_J559TT_dark_light.mat';
+existingMatFile = '/path/to/merge_file.mat';
 
 loadmat(existingMatFile);
 [newpath, oldmatname, ext] = fileparts(existingMatFile);

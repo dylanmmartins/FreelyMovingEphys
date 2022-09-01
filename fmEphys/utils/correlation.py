@@ -5,23 +5,23 @@ import numpy as np
 import pandas as pd
 
 def nanxcorr(x, y, maxlag=25):
-    """ Cross correlation ignoring NaNs.
+    """Cross correlation ignoring NaNs.
 
     Parameters
-    --------
-    x : array
+    ----------
+    x : np.array
         Array of values.
-    y : array
+    y : np.array
         Array of values to shift. Must be same length as x.
     maxlag : int
         Number of lags to shift y prior to testing correlation.
     
     Returns
-    --------
-    cc_out : array
-        Cross correlation.
-    lags : range
-        Lag vector.
+    -------
+    cc_out : np.array
+        Cross correlation
+    lags : list
+        Lag vector
     """
     lags = range(-maxlag, maxlag)
     cc = []

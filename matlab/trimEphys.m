@@ -10,6 +10,7 @@ function trimmedData = trimEphys(binaryPath, chNum, secToDrop, trimStart, trimEn
 % OUTPUTS
 % trimmedData: ephys data for each channel across time, with samples within
 % the range of secToDrop removed from either the start, end, or both
+
 samprate = 30000;
 openFile = fopen(binaryPath, 'r');
 data = fread(openFile, [chNum Inf], '*uint16');

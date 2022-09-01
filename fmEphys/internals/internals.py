@@ -19,3 +19,19 @@ def make_cfg(cfg, intopts):
     cfg = {**cfg, **intopts}
 
     return cfg
+
+def fill_cfg(cfg, internals_path=None):
+    """
+    
+    """
+    if internals_path is None:
+        utils_dir, _ = os.path.split(__file__)
+        src_dir, _ = os.path.split(utils_dir)
+        repo_dir, _ = os.path.split(src_dir)
+        internals_path = os.path.join(repo_dir, 'config/internals.yml')
+
+    with open(internals_path, 'r') as fp:
+        internals = yaml.load(fp)
+    
+    # Fill in internal values
+    missing = [k for k in internals.keys() if k not in cfg.keys()]

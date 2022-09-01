@@ -1,4 +1,8 @@
-import json, os
+"""Utilities for analyzing ephys and stimulus data.
+"""
+import os
+import json
+
 import cv2
 import numpy as np
 import pandas as pd
@@ -11,79 +15,164 @@ import scipy.ndimage
 import sklearn.linear_model
 from sklearn.neighbors import KernelDensity
 from tqdm import tqdm
-from zmq import THREAD_AFFINITY_CPU_ADD
 
-import fmEphys.utils as utils
+import fmEphys.utils as fmUtil
 
 def read_ephysbin(path, n_ch, probe_name=None, chmap_path=None):
-    """ Read in ephys binary and remap channels.
+    """ Read in ephys binary file.
 
-    Parameters:
-    if a probe name is given, the binary file will be remapped. otherwise, channels will be kept in the same order
+    If `probe_name` and `chmap_path` are both left as None, the binary
+    file will be read in and remain in the current non-physical order.
+    If either is given, the ephys data will be remapped.
 
+    Parameters
+    ----------
+    path : str
+        File path to a binary file of ephys data. Data will be read
+        in as type uint16.
+    n_ch : int
+        Number of channels in the probe's data.
+    probe_name : str
+        The channels in the binary file are shuffled relative to physical
+        position. If `probe_name` is given, and it exists as a key in the
+        file /fmEphys/internals/probe_maps.json, then the remapped sequence
+        of channels will be read in and data in the ephys binary file will
+        be rearrenged in this order.
+    chmap_path : str
+        If there is another .json file with remapping orders, this will be
+        used instead of the repository's default .json.
+        
     Returns:
-    ephys (pd.DataFrame): ephys data with shape (time, channel)
+    ephys_arr : np.array
+        Ephys data with shape (time, channel)
     """
-    # set up data types
-    dtypes = np.dtype([('ch'+str(i),np.uint16) for i in range(0,n_ch)])
-    # read in binary file
+    # Set up data types
+    dtypes = np.dtype([('ch'+str(i), np.uint16) for i in range(0, n_ch)])
+    
+    # Read in binary file
     ephys_arr = pd.DataFrame(np.fromfile(path, dtypes, -1, ''))
-    if probe_name is not None:
-        # open channel map file
-        if chmap_path is None:
-            utils_dir, _ = os.path.split(__file__)
-            src_dir, _ = os.path.split(utils_dir)
-            repo_dir, _ = os.path.split(src_dir)
-            chmap_path = os.path.join(repo_dir, 'config/channel_maps.json')
+
+    # Probe name is provided, channel map json was not.
+    if (probe_name is not None) and (chmap_path is None):
+        # Open channel map file
+        utils_dir, _ = os.path.split(__file__)
+        src_dir, _ = os.path.split(utils_dir)
+        repo_dir, _ = os.path.split(src_dir)
+        chmap_path = os.path.join(repo_dir, 'config/channel_maps.json')
+    
+    # Read in the probe map, whether it was provided as a path or if
+    # we will use the default json.
+    if chmap_path is not None:
+        # Read in the channel order
         with open(chmap_path, 'r') as fp:
             all_maps = json.load(fp)
-        # get channel map for the current probe
+
+        # Get channel map for the current probe
         ch_map = all_maps[probe_name]
-        # remap with known order of channels
+
+        # Remap with known order of channels
         ephys_arr = ephys_arr.iloc[:,[i-1 for i in list(ch_map)]]
+    
+    ephys_arr = ephys_arr.to_numpy()
+
     return ephys_arr
 
 def calc_approx_sp(ephys, t0, spike_thresh=-350, fixT=True):
+    """Calculate spike times from ephys binary.
+
+    This isn't a replacement for spike sorting, but can be a useful
+    method to get approximate spike times, either to debug or when doing
+    preliminary analysis before spike sorting has been run.
+
+    Parameters
+    ----------
+    ephys : np.array
+        Array of spike data with shape (time, channels) i.e. having been
+        read in using `read_ephysbin()` function.
+    t0 : float
+        Timestamp (in seconds) for the start of aquisition.
+    spike_thresh : int
+        Threshold for deflection used to get the index of spikes. Should be a
+        negative value.
+    fixT : bool
+        If True, the spike times for each channel will be corrected
+        for offset and drift in the aquisition rate relative to camera
+        and IMU data.
+
+    Returns
+    -------
+    spikeT_arr : np.array
+        Array of approximate spike times (in seconds).
+
+    """
 
     ephys_offset_val = 0.1
     ephys_drift_rate = -0.000114
     samp_freq = 30000
 
-    # center values on the mean
-    ephys = ephys.to_numpy()
-    ephys = ephys - np.mean(ephys,0)
+    # Center values on the mean
+    ephys = ephys - np.mean(ephys, 0)
 
-    # highpass filter
-    filt_ephys = utils.filt.butter_filt(ephys, lowcut=800, highcut=8000, order=5)
+    # Highpass filter
+    filt_ephys = fmUtil.filter.butter_filt(ephys, lowcut=800, highcut=8000, order=5)
 
-    # samples start at t0, and are acquired at rate of n_samples / freq
+    # Samples start at t0, and are acquired at rate of n_samples / freq
     num_samp = np.size(filt_ephys,0)
     ephysT = np.array(t0 + np.linspace(0, num_samp-1, num_samp) / samp_freq)
 
     n_ch = np.size(filt_ephys,1)
     all_spikeT = []
     for ch in tqdm(range(n_ch)):
-        # get the 
+        # Get spike times
         spike_inds = list(np.where(filt_ephys[:,ch] < spike_thresh)[0])
-        # get spike times
         spikeT = ephysT[spike_inds]
         if fixT:
-            # correct the spike times
+            # Correct the spike times
             spikeT = spikeT - (ephys_offset_val + spikeT * ephys_drift_rate)
         all_spikeT.append(spikeT)
     spikeT_arr = np.array(all_spikeT)
+
     return spikeT_arr
 
 def calc_PSTH(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win=1000):
-    """
-    calcualtes for a single cell at a time
+    """Calculate PSTH for a single unit.
 
-    bandwidth (msec)
-    resample_size (msec)
-    edgedrop (msec to drop at the start and end of the window so eliminate artifacts of filtering)
-    win = 1000msec before and after
-    """
+    The Peri-Stimulus Time Histogram (PSTH) will be calculated using Kernel
+    Density Estimation by sliding a gaussian along the spike times centered
+    on the event time.
 
+    Because the gaussian filter will create artifacts at the edges (i.e. the
+    start and end of the time window), it's best to add extra time to the start
+    and end and then drop that time from the PSTH, leaving the final PSTH with no
+    artifacts at the start and end. The time (in msec) set with `edgedrop` pads
+    the start and end with some time which is dropped from the final PSTH before
+    the PSTH is returned.
+
+    Parameters
+    ----------
+    spikeT : np.array
+        Array of spike times in seconds and with the type float. Should be 1D and be
+        the spike times for a single ephys unit.
+    eventT : np.array
+        Array of event times (e.g. presentation of stimulus or the time of a saccade)
+        in seconds and with the type float.
+    bandwidth : int
+        Bandwidth of KDE filter in units of milliseconds.
+    resample_size : int
+        Size of binning when resampling spike rate, in units of milliseconds.
+    edgedrop : int
+        Time to pad at the start and end, and then dropped, to eliminate edge artifacts.
+    win : int
+        Window in time to use in positive and negative directions. For win=1000, the
+        PSTH will start -1000 ms before the event and end +1000 ms after the event.
+
+    Returns
+    -------
+    psth : np.array
+        Peri-Stimulus Time Histogram
+
+    """
+    # Unit conversions
     bandwidth = bandwidth / 1000
     resample_size = resample_size / 1000
     win = win / 1000
@@ -113,40 +202,74 @@ def calc_PSTH(spikeT, eventT, bandwidth=10, resample_size=1, edgedrop=15, win=10
 
     return psth
 
-def drop_sacc_near(thin, avoid, win=0.25):
-    """
-    `thin` is the list of saccade times to thin out
-    `avoid` are the ones that `thin` is not allowed to be near
+def drop_nearby_events(thin, avoid, win=0.25):
+    """Drop events that fall near others.
 
-    if eliminating comp that fall near a gaze shift, `thin`
-    should be compensatory event times
+    When eliminating compensatory eye/head movements which fall right after
+    gaze-shifting eye/head movements, `thin` should be the compensatory event
+    times.
+
+    Parameters
+    ----------
+    thin : np.array
+        Array of timestamps (as float in units of seconds) that
+        should be thinned out, removing any timestamps that fall
+        within `win` seconds of timestamps in `avoid`.
+    avoid : np.array
+        Timestamps to avoid being near.
+    win : np.array
+        Time (in seconds) that times in `thin` must fall before or
+        after items in `avoid` by.
     
     """
     to_drop = np.array([c for c in thin for g in avoid if ((g>(c-win)) & (g<(c+win)))])
     thinned = np.delete(thin, np.isin(thin, to_drop))
     return thinned
 
-def drop_repeat_sacc(eventT, onset=True, win=0.020):
-    """For saccades spanning multiple camera
-    frames, only keep one saccade time. Either first or last.
+def drop_repeat_events(eventT, onset=True, win=0.020):
+    """Eliminate saccades repeated over sequential camera frames.
 
-    If `onset`, keep the first in a sequence (i.e. the onset of
-    the movement). otherwise, keep the final saccade in the sequence
+    Saccades sometimes span sequential camera frames, so that two or
+    three sequential camera frames are labaled as saccade events, despite
+    only being a single eye/head movement. This function keeps only a
+    single frame from the sequence, either the first or last in the
+    sequence.
+
+    Parameters
+    ----------
+    eventT : np.array
+        Array of saccade times (in seconds as float).
+    onset : bool
+        If True, a sequence of back-to-back frames labeled as a saccade will
+        be reduced to only the first/onset frame in the sequence. If false, the
+        last in the sequence will be used.
+    win : float
+        Distance in time (in seconds) that frames must follow each other to be
+        considered repeating. Frames are 0.016 ms, so the default value, 0.020
+        requires that frames directly follow one another.
+
+    Returns
+    -------
+    thinned : np.array
+        Array of saccade times, with repeated labels for single events removed.
 
     """
     duplicates = set([])
     for t in eventT:
         if onset:
+            # keep first
             new = eventT[((eventT-t)<win) & ((eventT-t)>0)]
         else:
+            # keep last
             new = eventT[((t-eventT)<win) & ((t-eventT)>0)]
         duplicates.update(list(new))
-    out = np.sort(np.setdiff1d(eventT, np.array(list(duplicates)), assume_unique=True))
-    return out
+
+    thinned = np.sort(np.setdiff1d(eventT, np.array(list(duplicates)), assume_unique=True))
+    
+    return thinned
 
 def calc_sp_rate(spikeT, maxT, dT=0.025):
-    """
-    get binned spike rate
+    """Get binned spike rate from spike times.
 
     array of arrays where spikes are indicated by a
     timestamp to 2D array at binned intervals of a
