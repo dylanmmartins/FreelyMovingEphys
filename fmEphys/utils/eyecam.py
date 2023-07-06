@@ -194,12 +194,14 @@ class Eyecam(fmEphys.Camera):
                 existing_camera_calib_props = None
 
         elif self.cfg['share_eyecal'] is False:
+            if self.cfg['strict_dir']:
+                calibration_param_file = fmEphys.find('*fm_eyecameracalc_props.json', self.cfg['recording_path'], MR=True)
             
-            calibration_param_file = next(i for i in fmEphys.find('*fm_eyecameracalc_props.json',  \
-                                                        self.cfg['recording_path']) if self.camname in i)
-            
-            with open(calibration_param_file, 'r') as fp:
-                existing_camera_calib_props = json.load(fp)
+                with open(calibration_param_file, 'r') as fp:
+                    existing_camera_calib_props = json.load(fp)
+
+            elif not self.cfg['strict_dir']:
+                existing_camera_calib_props = None
 
         # Names of the different points
         x_vals, y_vals, likeli_vals = self.split_xyl()
@@ -264,6 +266,7 @@ class Eyecam(fmEphys.Camera):
             usegood_reflec = (spot_count >= self.cfg['eye_lghtN'])
 
         else:
+            pupil_count = np.sum(likelihood >= self.cfg['Lthresh'], 1)
             usegood_eye = pupil_count >= self.cfg['eye_useN']
             usegood_eyecalib = pupil_count >= self.cfg['eye_calN']
         

@@ -15,20 +15,20 @@ dependencies:
   - pip
   - jupyter
   - nb_conda
+  - nb_conda_kernels
   - ffmpeg
   - matplotlib
   - scikit-image
-  - xarray=0.16
+  - xarray
   - tqdm
   - pytables
   - umap-learn
   - pip:
-    - pydantic
-    - deeplabcut[gui,tf]==2.3
+    - deeplabcut[gui,tf]
     - astropy
     - wavio
     - pysimplegui
     - netcdf4
     - opencv-python
-    - scipy==1.6.2
+    - scipy
     - ray

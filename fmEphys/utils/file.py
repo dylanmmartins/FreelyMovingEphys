@@ -5,8 +5,10 @@ FreelyMovingEphys/src/utils/save.py
 import h5py
 import numpy as np
 import pandas as pd
+import datetime as datetime
 
 import fmEphys
+# import gazecontrol as gc
 
 def read_DLC_data(path, multianimal=False):
 
@@ -45,12 +47,18 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
     for key, item in iterator:
         if isinstance(dic,list):
             key = str(key)
-        if isinstance(item, (np.ndarray, np.int64, np.float64, int, float, str, bytes)):
-            h5file[path + key] = item
+        if isinstance(item, (np.ndarray, np.int16, np.int64, np.float64, int, float, str, bytes, np.float32, np.int32)):
+            try:
+                h5file[path + key] = item
+            except TypeError:
+                if isinstance(item, np.ndarray) and (item.dtype == object):
+                    recursively_save_dict_contents_to_group(h5file, path + key + '/', item.item())
         elif isinstance(item, dict) or isinstance(item,list):
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item)
+        # elif isinstance(item, datetime.datetime):
+        #     h5file[path + key] = gc.time2str(item)
         else:
-            raise ValueError('Cannot save %s type'%type(item))
+            raise ValueError('Cannot save {} with type {}'.format(key, type(item)))
 
 def read_h5(filename, ASLIST=False):
     """
