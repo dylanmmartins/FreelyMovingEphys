@@ -113,21 +113,34 @@ def recursively_save_dict_contents_to_group(h5file, path, dic):
 
         if isinstance(dic,list):
             key = str(key)
+
+        if isinstance(item, np.ndarray) and (item.dtype == bool):
+            h5file[path + key] = item.astype(np.int8)
             
-        if isinstance(item, (np.ndarray, np.int16, np.int64, np.float64, int, float, str, bytes, np.float32, np.int32)):
+        elif isinstance(item, (np.ndarray, np.int16, np.int64, np.float64, int, float, str, bytes, np.float32, np.int32)):
             
             try:
                 h5file[path + key] = item
             
             except TypeError:
                 if isinstance(item, np.ndarray) and (item.dtype == object):
-                    recursively_save_dict_contents_to_group(h5file, path + key + '/', item.item())
+
+                    try:
+
+                        recursively_save_dict_contents_to_group(h5file, path + key + '/', item.item())
+
+                    except ValueError:
+                            
+                        recursively_save_dict_contents_to_group(h5file, path + key + '/', item.tolist())
 
         elif isinstance(item, dict) or isinstance(item, list):
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item)
 
         elif isinstance(item, datetime.datetime):
              h5file[path + key] = fme.time2str(item)
+
+        # convert bool arrays to int arrays
+        
 
         else:
             raise ValueError('Cannot save %s type'%type(item))
