@@ -40,6 +40,7 @@ import yaml
 import xarray as xr
 import numpy as np
 import pandas as pd
+import sys
 
 import fmEphys as fme
 
@@ -114,7 +115,7 @@ def flatten_series(s):
     a = np.zeros([np.size(s,0), len(s.iloc[0])])
 
     count = 0
-    for ind, data in s.iteritems():
+    for ind, data in s.items():
         a[count,:] = data
         count += 1
 
@@ -170,7 +171,7 @@ def show_xr_objs(df):
 
     ret = []
 
-    for col, ser in df.iteritems():
+    for col, ser in df.items():
         for i in ser.index.values:
 
             if type(ser.loc[i]) == xr.core.dataarray.DataArray:
@@ -194,7 +195,7 @@ def replace_xr_obj(df):
         DataFrame with xarray objects replaced by their values as a list.
     """
     for x in show_xr_objs(df):
-        for i, val in df[x].iteritems():
+        for i, val in df[x].items():
             if type(val) == xr.core.dataarray.DataArray:
                 df.at[i,x] = val.values
     return df
